@@ -7,52 +7,60 @@ fn main() {
     if let Err(_) = register_signal_handlers() {
         println!("Signals are not handled properly");
     };
-    let timeout = 0u32;
-
-    loop { execute_shell(timeout); }
+    loop { execute_shell(); }
 }
 
+/// Register UNIX system signals
 fn register_signal_handlers() -> Result<(), Box<dyn Error>>  {
+    // currently list of signals only consists of SIGINT (Ctrl + C)
     let mut signals = Signals::new(&[SIGINT])?;
 
+    // signal execution is passed to the child process
     thread::spawn(move || {
         for sig in signals.forever() {
-            assert_ne!(0, sig);
+            // assert that the signal is indeed sent
+            // but error checking is still performed.
+            assert_ne!(0, sig); //
         }
     });
 
     Ok(())
 }
 
-fn execute_shell(timeout: u32) {
+
+/// Run the minishell
+fn execute_shell() {
     let minishell = build_user_minishell();
     match write_to_stdout(&minishell) {
         Ok(v) => v,
         Err(e) => println!("Unable to write to stdout : {}", e),
     }
 
-    let cmd = get_command_from_input();
+    let cmd = get_user_command();
     if let Err(_) = Command::new(&cmd).status() {
         println!("{}: command not found!", &cmd);
     }
 
 }
-
+/// flushes text buffer to the stdout
 fn write_to_stdout(text: &str) -> io::Result<()> {
     io::stdout().write(text.as_ref())?;
     io::stdout().flush()?;
     Ok(())
 }
 
-fn get_command_from_input() -> String {
+/// fetch the user inputted command
+fn get_user_command() -> String {
     let mut input = String::new();
     io::stdin().read_line(&mut input).unwrap();
-    if input.ends_with('\n') {
+    while input.ends_with('\n') {
         input.pop();
     }
+    remove_whitespace(&mut input);
     input
 }
 
+/// build a minishell name for the display
 fn build_user_minishell() -> String {
     let mut username = String::new();
 
@@ -68,4 +76,9 @@ fn build_user_minishell() -> String {
 
     username.push_str("# ");
     username
+}
+
+/// Function to remove leading and trailing white spaces from string
+fn remove_whitespace(s: &mut String) {
+    s.retain(|c| !c.is_whitespace());
 }
