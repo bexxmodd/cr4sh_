@@ -1,26 +1,41 @@
-use signal_hook::{iterator::Signals, consts::SIGINT};
-use std::{process::Command, thread, error::Error, io::{self, Write}};
+use signal_hook::{iterator::Signals, consts::{SIGINT, SIGALRM}};
+use std::{env, process::Command, thread, error::Error, io::{self, Write}};
 use users::{get_user_by_uid, get_current_uid};
 use sysinfo::{SystemExt};
+use nix::unistd::{alarm, Pid};
+use nix::sys::signal::{self, Signal};
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    let mut timeout = 0u32;
+    if args.len() == 2 {
+        timeout = args[1].to_string().parse::<u32>().unwrap();
+    } 
     if let Err(_) = register_signal_handlers() {
         println!("Signals are not handled properly");
     };
-    loop { execute_shell(); }
+    loop {
+        alarm::cancel(); // cancel if other process for alarm is running
+        execute_shell(timeout);
+    }
 }
 
 /// Register UNIX system signals
 fn register_signal_handlers() -> Result<(), Box<dyn Error>>  {
     // currently list of signals only consists of SIGINT (Ctrl + C)
-    let mut signals = Signals::new(&[SIGINT])?;
+    let mut signals = Signals::new(&[SIGINT, SIGALRM])?;
 
     // signal execution is passed to the child process
     thread::spawn(move || {
         for sig in signals.forever() {
-            // assert that the signal is indeed sent
-            // but error checking is still performed.
-            assert_ne!(0, sig); //
+            if sig == SIGALRM {
+                // And actually stop ourselves.
+                println!("This's taking too long...");
+                signal::kill(Pid::from_raw(0), Signal::SIGINT).unwrap()
+            } else {
+                // assert that the signal is indeed sent
+                assert_ne!(0, sig); //
+            }
         }
     });
 
@@ -29,7 +44,7 @@ fn register_signal_handlers() -> Result<(), Box<dyn Error>>  {
 
 
 /// Run the minishell
-fn execute_shell() {
+fn execute_shell(timeout: u32) {
     let minishell = build_user_minishell();
     match write_to_stdout(&minishell) {
         Ok(v) => v,
@@ -37,6 +52,7 @@ fn execute_shell() {
     }
 
     let cmd = get_user_command();
+    alarm::set(timeout);
     if let Err(_) = Command::new(&cmd).status() {
         println!("{}: command not found!", &cmd);
     }
@@ -45,7 +61,7 @@ fn execute_shell() {
 /// flushes text buffer to the stdout
 fn write_to_stdout(text: &str) -> io::Result<()> {
     io::stdout().write(text.as_ref())?;
-    io::stdout().flush()?;
+    io::stdout().flush()?; // to the terminal
     Ok(())
 }
 
@@ -67,7 +83,6 @@ fn build_user_minishell() -> String {
     // get user name
     let u = get_user_by_uid(get_current_uid()).unwrap();
     username.push_str(&u.name().to_string_lossy());
-
     username.push_str("@");
 
     // get system name
