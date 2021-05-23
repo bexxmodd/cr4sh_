@@ -1,18 +1,20 @@
-use signal_hook::{iterator::Signals, consts::{SIGINT, SIGALRM, SIGQUIT}};
-use std::{env, process::{Command, exit}, thread, error::Error, io::{self, Write}};
-use users::{get_user_by_uid, get_current_uid};
 use sysinfo::SystemExt;
+use signal_hook::{iterator, consts::{SIGINT, SIGALRM, SIGQUIT}};
+use std::{env, process, thread, error::Error, io::{self, Write}};
 use nix::unistd::{alarm, Pid};
 use nix::sys::signal::{self, Signal};
+use users;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let mut timeout = 100u32;
     if args.len() == 2 {
-        timeout = args[1].to_string().parse::<u32>().unwrap();
+        timeout = args[1].to_string()
+                        .parse::<u32>()
+                        .unwrap();
     }
 
-    if let Err(_) = set_signal_handlers() {
+    if let Err(_) = register_signal_handlers() {
         println!("Signals are not handled properly");
     }
     
@@ -23,24 +25,24 @@ fn main() {
 }
 
 /// Register UNIX system signals
-fn set_signal_handlers() -> Result<(), Box<dyn Error>>  {
-    // currently list of signals only consists of SIGINT (Ctrl + C)
-    let mut signals = Signals::new(&[SIGINT, SIGALRM, SIGQUIT])?;
+fn register_signal_handlers() -> Result<(), Box<dyn Error>>  {
+    let mut signals = iterator::Signals::new(&[SIGINT, SIGALRM, SIGQUIT])?;
 
     // signal execution is passed to the child process
     thread::spawn(move || {
         for sig in signals.forever() {
             match sig {
                 SIGALRM => {
-                    // And actually stop ourselves.
-                    println!("This's taking too long...");
+                    write_to_stdout("This's taking too long...\n").unwrap(); // not safe
+                    // when alarm goes off it kills child process
                     signal::kill(Pid::from_raw(0), Signal::SIGINT).unwrap()
                 },
                 SIGQUIT => {
-                    println!("Good bye!");
-                    exit(0);
+                    write_to_stdout("Good bye!\n").unwrap(); // not safe
+                    process::exit(0);
                 },
-                _ => assert_ne!(0, sig), // assert that the signal is indeed sent
+                SIGINT => assert_ne!(0, sig), // assert that the signal is sent
+                _ => continue,
             }
         }
     });
@@ -58,7 +60,7 @@ fn execute_shell(timeout: u32) {
 
     let cmd = get_user_command();
     alarm::set(timeout);
-    if let Err(_) = Command::new(&cmd).status() {
+    if let Err(_) = process::Command::new(&cmd).status() {
         println!("{}: command not found!", &cmd);
     }
 
@@ -87,7 +89,10 @@ fn build_user_minishell() -> String {
     let mut username = String::new();
 
     // get user name
-    let u = get_user_by_uid(get_current_uid()).unwrap();
+    let u = users::get_user_by_uid(
+        users::get_current_uid()
+    ).unwrap();
+
     username.push_str(&u.name().to_string_lossy());
     username.push_str("@");
 
