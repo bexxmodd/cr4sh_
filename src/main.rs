@@ -1,47 +1,52 @@
-use signal_hook::{iterator::Signals, consts::{SIGINT, SIGALRM}};
-use std::{env, process::Command, thread, error::Error, io::{self, Write}};
+use signal_hook::{iterator::Signals, consts::{SIGINT, SIGALRM, SIGQUIT}};
+use std::{env, process::{Command, exit}, thread, error::Error, io::{self, Write}};
 use users::{get_user_by_uid, get_current_uid};
-use sysinfo::{SystemExt};
+use sysinfo::SystemExt;
 use nix::unistd::{alarm, Pid};
 use nix::sys::signal::{self, Signal};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let mut timeout = 0u32;
+    let mut timeout = 100u32;
     if args.len() == 2 {
         timeout = args[1].to_string().parse::<u32>().unwrap();
-    } 
-    if let Err(_) = register_signal_handlers() {
+    }
+
+    if let Err(_) = set_signal_handlers() {
         println!("Signals are not handled properly");
-    };
+    }
+    
     loop {
-        alarm::cancel(); // cancel if other process for alarm is running
+        alarm::cancel(); // cancel if other alarm process is running
         execute_shell(timeout);
     }
 }
 
 /// Register UNIX system signals
-fn register_signal_handlers() -> Result<(), Box<dyn Error>>  {
+fn set_signal_handlers() -> Result<(), Box<dyn Error>>  {
     // currently list of signals only consists of SIGINT (Ctrl + C)
-    let mut signals = Signals::new(&[SIGINT, SIGALRM])?;
+    let mut signals = Signals::new(&[SIGINT, SIGALRM, SIGQUIT])?;
 
     // signal execution is passed to the child process
     thread::spawn(move || {
         for sig in signals.forever() {
-            if sig == SIGALRM {
-                // And actually stop ourselves.
-                println!("This's taking too long...");
-                signal::kill(Pid::from_raw(0), Signal::SIGINT).unwrap()
-            } else {
-                // assert that the signal is indeed sent
-                assert_ne!(0, sig); //
+            match sig {
+                SIGALRM => {
+                    // And actually stop ourselves.
+                    println!("This's taking too long...");
+                    signal::kill(Pid::from_raw(0), Signal::SIGINT).unwrap()
+                },
+                SIGQUIT => {
+                    println!("Good bye!");
+                    exit(0);
+                },
+                _ => assert_ne!(0, sig), // assert that the signal is indeed sent
             }
         }
     });
 
     Ok(())
 }
-
 
 /// Run the minishell
 fn execute_shell(timeout: u32) {
@@ -58,6 +63,7 @@ fn execute_shell(timeout: u32) {
     }
 
 }
+
 /// flushes text buffer to the stdout
 fn write_to_stdout(text: &str) -> io::Result<()> {
     io::stdout().write(text.as_ref())?;
