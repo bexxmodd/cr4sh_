@@ -65,7 +65,6 @@ fn execute_shell(timeout: u32) {
     alarm::set(timeout);
     if let Err(_) = process::Command::new(&cmd).status() {
         eprintln!("{}: command not found!", &cmd);
-        process::exit(1);
     }
 
 }
