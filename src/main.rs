@@ -55,13 +55,13 @@ fn execute_shell(timeout: u32) {
     let minishell = build_user_minishell();
     match write_to_stdout(&minishell) {
         Ok(v) => v,
-        Err(e) => println!("Unable to write to stdout : {}", e),
+        Err(e) => eprintln!("Unable to write to stdout : {}", e),
     }
 
     let cmd = get_user_command();
     alarm::set(timeout);
     if let Err(_) = process::Command::new(&cmd).status() {
-        println!("{}: command not found!", &cmd);
+        eprintln!("{}: command not found!", &cmd);
     }
 
 }
