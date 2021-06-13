@@ -1,6 +1,6 @@
 [package]
-name = "bexx-shredder"
-version = "0.1.0"
+name = "ghost-inz-shell"
+version = "0.0.1"
 authors = ["Bexx Modebadze <bexxmodd@seas.upenn.edu>"]
 edition = "2018"
 

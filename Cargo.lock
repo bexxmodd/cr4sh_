@@ -13,20 +13,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
-name = "bexx-shredder"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "crossbeam-channel",
- "ctrlc",
- "log",
- "nix",
- "signal-hook",
- "sysinfo",
- "users",
-]
-
-[[package]]
 name = "bitflags"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -116,6 +102,20 @@ name = "either"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
+
+[[package]]
+name = "ghost-inz-shell"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "crossbeam-channel",
+ "ctrlc",
+ "log",
+ "nix",
+ "signal-hook",
+ "sysinfo",
+ "users",
+]
 
 [[package]]
 name = "hermit-abi"

@@ -1,9 +1,11 @@
-use sysinfo::SystemExt;
+// use sysinfo::SystemExt;
+pub mod tokenizer;
+
 use signal_hook::{iterator, consts::{SIGINT, SIGALRM, SIGQUIT}};
 use std::{env, process, thread, error::Error, io::{self, Write}};
 use nix::unistd::{alarm, Pid};
 use nix::sys::signal::{self, Signal};
-use users;
+use crate::tokenizer::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -41,7 +43,7 @@ fn register_signal_handlers() -> Result<(), Box<dyn Error>>  {
                     write_to_stdout("Good bye!\n").unwrap(); // not safe
                     process::exit(0);
                 },
-                SIGINT => assert_ne!(0, sig), // assert that the signal is sent
+                SIGINT => assert_eq!(2, sig), // assert that the signal is sent
                 _ => continue,
             }
         }
@@ -52,7 +54,7 @@ fn register_signal_handlers() -> Result<(), Box<dyn Error>>  {
 
 /// Run the minishell
 fn execute_shell(timeout: u32) {
-    let minishell = build_user_minishell();
+    let minishell = "ghost# ";
     match write_to_stdout(&minishell) {
         Ok(v) => v,
         Err(e) =>  {
@@ -61,11 +63,14 @@ fn execute_shell(timeout: u32) {
         },
     }
 
-    let cmd = get_user_command();
-    alarm::set(timeout);
-    if let Err(_) = process::Command::new(&cmd).status() {
-        eprintln!("{}: command not found!", &cmd);
+    let cmd: Vec<_> = get_user_commands();
+    for i in cmd.iter() {
+        println!("{}", i);
     }
+    alarm::set(timeout);
+    // if let Err(_) = process::Command::new(&cmd).status() {
+    //     eprintln!("{}: command not found!", &cmd);
+    // }
 
 }
 
@@ -77,37 +82,58 @@ fn write_to_stdout(text: &str) -> io::Result<()> {
 }
 
 /// fetch the user inputted command
-fn get_user_command() -> String {
+fn get_user_commands() -> Vec<String> {
     let mut input = String::new();
     io::stdin().read_line(&mut input).unwrap();
-    while input.ends_with('\n') {
+    if input.ends_with('\n') {
         input.pop();
     }
-    remove_whitespace(&mut input);
-    input
+    
+    let mut tokens = Tokenizer::new(&input);
+    let mut commands = vec![];
+    let mut out_count = 0;
+    let mut in_count = 0;
+
+    loop {
+        if let Some(t) = tokens.next() {
+            if t.eq(">") {
+                out_count += 1;
+                if out_count > 1 {
+                    eprintln!("Ivalid: mutlpile standard output redirections");
+                }
+            } else if t.eq("<") {
+                in_count += 1;
+                if in_count > 1 {
+                    eprintln!("Ivalid: mutlpile standard input redirections");
+                }
+            }
+            commands.push(t);
+        } else { break; }
+    }
+    commands
 }
 
-/// build a minishell name for the display
-fn build_user_minishell() -> String {
-    let mut username = String::new();
+// /// build a minishell name for the display
+// fn build_user_minishell() -> String {
+//     let mut username = String::new();
 
-    // get user name
-    let u = users::get_user_by_uid(
-        users::get_current_uid()
-    ).unwrap();
+//     // get user name
+//     let u = users::get_user_by_uid(
+//         users::get_current_uid()
+//     ).unwrap();
 
-    username.push_str(&u.name().to_string_lossy());
-    username.push_str("@");
+//     username.push_str(&u.name().to_string_lossy());
+//     username.push_str("@");
 
-    // get system name
-    let system = sysinfo::System::new_all();
-    username.push_str(&system.get_name().unwrap());
+//     // get system name
+//     let system = sysinfo::System::new_all();
+//     username.push_str(&system.get_name().unwrap());
 
-    username.push_str("# ");
-    username
-}
+//     username.push_str("# ");
+//     username
+// }
 
-/// Function to remove leading and trailing white spaces from string
-fn remove_whitespace(s: &mut String) {
-    s.retain(|c| !c.is_whitespace());
-}
+// /// Function to remove leading and trailing white spaces from string
+// fn remove_whitespace(s: &mut String) {
+//     s.retain(|c| !c.is_whitespace());
+// }
