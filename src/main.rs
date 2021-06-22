@@ -1,48 +1,30 @@
 // use sysinfo::SystemExt;
 pub mod tokenizer;
 
-use signal_hook::{iterator, consts::{SIGINT, SIGALRM, SIGQUIT}};
-use std::{env, process, thread, error::Error, io::{self, Write}};
-use nix::unistd::{alarm, Pid};
-use nix::sys::signal::{self, Signal};
+use signal_hook::{iterator, consts::{SIGINT, SIGQUIT}};
+use std::{process, thread, error::Error, io::{self, Write}};
+use std::fs::{OpenOptions, File};
 use crate::tokenizer::*;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let mut timeout = 100u32;
-    if args.len() == 2 {
-        timeout = args[1].to_string()
-                        .parse::<u32>()
-                        .unwrap();
-    }
-
     if let Err(_) = register_signal_handlers() {
         println!("Signals are not handled properly");
     }
     
     loop {
-        alarm::cancel(); // cancel if other alarm process is running
-        execute_shell(timeout);
+        execute_shell();
     }
 }
 
 /// Register UNIX system signals
 fn register_signal_handlers() -> Result<(), Box<dyn Error>>  {
-    let mut signals = iterator::Signals::new(&[SIGINT, SIGALRM, SIGQUIT])?;
+    let mut signals = iterator::Signals::new(&[SIGINT, SIGQUIT])?;
 
     // signal execution is passed to the child process
     thread::spawn(move || {
         for sig in signals.forever() {
             match sig {
-                SIGALRM => {
-                    write_to_stdout("This's taking too long...\n").unwrap(); // not safe
-                    // when alarm goes off it kills child process
-                    signal::kill(Pid::from_raw(0), Signal::SIGINT).unwrap()
-                },
-                SIGQUIT => {
-                    write_to_stdout("Good bye!\n").unwrap(); // not safe
-                    process::exit(0);
-                },
+                SIGQUIT => process::exit(0),
                 SIGINT => assert_eq!(2, sig), // assert that the signal is sent
                 _ => continue,
             }
@@ -53,25 +35,79 @@ fn register_signal_handlers() -> Result<(), Box<dyn Error>>  {
 }
 
 /// Run the minishell
-fn execute_shell(timeout: u32) {
+fn execute_shell() {
     let minishell = "ghost# ";
-    match write_to_stdout(&minishell) {
-        Ok(v) => v,
-        Err(e) =>  {
-            eprintln!("Unable to write to stdout : {}", e);
-            process::exit(1);
-        },
+    if let Err(e) = write_to_stdout(&minishell) {
+        eprintln!("Unable to write to stdout : {}", e);
+        process::exit(1);
     }
 
-    let cmd: Vec<_> = get_user_commands();
-    for i in cmd.iter() {
-        println!("{}", i);
-    }
-    alarm::set(timeout);
-    // if let Err(_) = process::Command::new(&cmd).status() {
-    //     eprintln!("{}: command not found!", &cmd);
-    // }
+    let mut cmd_line = get_user_commands();
 
+    if cmd_line.has_redirection() {
+        let args = cmd_line.args_before_redirection();
+
+        let file_in = if cmd_line.peek().eq("<") {
+            cmd_line.next();
+            Some(open_stdin_file(&cmd_line.next().unwrap())
+                                            .unwrap())
+        } else {
+            None
+        };
+
+        let file_out = if cmd_line.peek().eq(">") {
+            cmd_line.next();
+            Some(open_stdout_file(&cmd_line.next().unwrap())
+                                        .unwrap())
+        } else {
+            None
+        };
+
+        let mut proc = process::Command::new(&args[0]);
+        proc.args(&args[1..]);
+
+        if let Some(out) = file_out {
+            println!("OUT!");
+            proc.stdout(out);
+        }
+
+        if let Some(i) = file_in {
+            println!("IN!");
+            proc.stdin(i);
+        }
+
+        if let Ok(mut c) = proc.spawn() {
+            c.wait().unwrap();
+        } else {
+            eprintln!("{}: command not found!", &args[0]);
+        }
+
+
+    } else {
+        // execute command that has no redirections
+        let cmd = cmd_line.get_args();
+        if let Err(_) = process::Command::new(&cmd[0])
+                                            .args(&cmd[1..])
+                                            .status() {
+            eprintln!("{}: command not found!", &cmd[0]);
+        }
+    }
+}
+
+fn open_stdout_file(file_name: &str) -> Result<File, Box<dyn Error>> {
+    let file = OpenOptions::new()
+                                        .truncate(true)
+                                        .write(true)
+                                        .create(true)
+                                        .open(file_name)?;
+    Ok(file)
+}
+
+fn open_stdin_file(file_name: &str) -> Result<File, Box<dyn Error>> {
+    let file = OpenOptions::new()
+                                .read(true)
+                                .open(file_name)?;
+    Ok(file)
 }
 
 /// flushes text buffer to the stdout
@@ -81,59 +117,13 @@ fn write_to_stdout(text: &str) -> io::Result<()> {
     Ok(())
 }
 
-/// fetch the user inputted command
-fn get_user_commands() -> Vec<String> {
+/// fetch the user inputted commands
+fn get_user_commands() -> Tokenizer {
     let mut input = String::new();
     io::stdin().read_line(&mut input).unwrap();
     if input.ends_with('\n') {
         input.pop();
     }
     
-    let mut tokens = Tokenizer::new(&input);
-    let mut commands = vec![];
-    let mut out_count = 0;
-    let mut in_count = 0;
-
-    loop {
-        if let Some(t) = tokens.next() {
-            if t.eq(">") {
-                out_count += 1;
-                if out_count > 1 {
-                    eprintln!("Ivalid: mutlpile standard output redirections");
-                }
-            } else if t.eq("<") {
-                in_count += 1;
-                if in_count > 1 {
-                    eprintln!("Ivalid: mutlpile standard input redirections");
-                }
-            }
-            commands.push(t);
-        } else { break; }
-    }
-    commands
+    Tokenizer::new(&input)
 }
-
-// /// build a minishell name for the display
-// fn build_user_minishell() -> String {
-//     let mut username = String::new();
-
-//     // get user name
-//     let u = users::get_user_by_uid(
-//         users::get_current_uid()
-//     ).unwrap();
-
-//     username.push_str(&u.name().to_string_lossy());
-//     username.push_str("@");
-
-//     // get system name
-//     let system = sysinfo::System::new_all();
-//     username.push_str(&system.get_name().unwrap());
-
-//     username.push_str("# ");
-//     username
-// }
-
-// /// Function to remove leading and trailing white spaces from string
-// fn remove_whitespace(s: &mut String) {
-//     s.retain(|c| !c.is_whitespace());
-// }
