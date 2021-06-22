@@ -34,7 +34,7 @@ fn register_signal_handlers() -> Result<(), Box<dyn Error>>  {
     Ok(())
 }
 
-/// Run the minishell
+/// Run the minishell to execute user supplied instructions
 fn execute_shell() {
     let minishell = "ghost# ";
     if let Err(e) = write_to_stdout(&minishell) {
@@ -46,43 +46,38 @@ fn execute_shell() {
 
     if cmd_line.has_redirection() {
         let args = cmd_line.args_before_redirection();
-
-        let file_in = if cmd_line.peek().eq("<") {
-            cmd_line.next();
-            Some(open_stdin_file(&cmd_line.next().unwrap())
-                                            .unwrap())
-        } else {
-            None
-        };
-
-        let file_out = if cmd_line.peek().eq(">") {
-            cmd_line.next();
-            Some(open_stdout_file(&cmd_line.next().unwrap())
-                                        .unwrap())
-        } else {
-            None
-        };
-
         let mut proc = process::Command::new(&args[0]);
         proc.args(&args[1..]);
 
-        if let Some(out) = file_out {
-            println!("OUT!");
-            proc.stdout(out);
+        loop {
+            if cmd_line.peek().eq("<") {
+                // skip redirection character
+                cmd_line.next();
+                // redirect stdin from a given file
+                let file_in = open_stdin_file(
+                    &cmd_line.next().unwrap()).unwrap();
+                proc.stdin(file_in);
+            }
+            
+            if cmd_line.peek().eq(">") {
+                // skip redirection character
+                cmd_line.next();
+                // redirect stdout to a give file
+                let file_out = open_stdout_file(
+                    &cmd_line.next().unwrap()).unwrap();
+                proc.stdout(file_out);
+            }
+
+            if cmd_line.peek().is_empty() { break; }
         }
 
-        if let Some(i) = file_in {
-            println!("IN!");
-            proc.stdin(i);
-        }
-
+        // create child process and execute command
+        // after that wait for the process to complete
         if let Ok(mut c) = proc.spawn() {
             c.wait().unwrap();
         } else {
             eprintln!("{}: command not found!", &args[0]);
         }
-
-
     } else {
         // execute command that has no redirections
         let cmd = cmd_line.get_args();
@@ -94,15 +89,19 @@ fn execute_shell() {
     }
 }
 
+/// Redirect a std out to a give file.
+/// If file doesn't exists create one
 fn open_stdout_file(file_name: &str) -> Result<File, Box<dyn Error>> {
     let file = OpenOptions::new()
-                                        .truncate(true)
-                                        .write(true)
-                                        .create(true)
-                                        .open(file_name)?;
+                                .truncate(true)
+                                .write(true)
+                                .create(true)
+                                .open(file_name)?;
     Ok(file)
 }
 
+/// Redirect a std in from a given file to console.
+/// If file doesn't exist error is thrown
 fn open_stdin_file(file_name: &str) -> Result<File, Box<dyn Error>> {
     let file = OpenOptions::new()
                                 .read(true)
