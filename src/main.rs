@@ -91,7 +91,7 @@ fn execute_shell() {
 
 /// Redirect a std out to a give file.
 /// If file doesn't exists create one
-fn open_stdout_file(file_name: &str) -> Result<File, Box<dyn Error>> {
+fn open_stdout_file(file_name: &str) -> Result<File, io::Error> {
     let file = OpenOptions::new()
                                 .truncate(true)
                                 .write(true)
@@ -102,7 +102,7 @@ fn open_stdout_file(file_name: &str) -> Result<File, Box<dyn Error>> {
 
 /// Redirect a std in from a given file to console.
 /// If file doesn't exist error is thrown
-fn open_stdin_file(file_name: &str) -> Result<File, Box<dyn Error>> {
+fn open_stdin_file(file_name: &str) -> Result<File, io::Error> {
     let file = OpenOptions::new()
                                 .read(true)
                                 .open(file_name)?;
@@ -126,3 +126,4 @@ fn get_user_commands() -> Tokenizer {
     
     Tokenizer::new(&input)
 }
+
