@@ -1,23 +1,30 @@
 // use sysinfo::SystemExt;
 pub mod tokenizer;
 
-use signal_hook::{iterator, consts::{SIGINT, SIGQUIT}};
-use std::{process, thread, error::Error, io::{self, Write}};
-use std::fs::{OpenOptions, File};
 use crate::tokenizer::*;
+use signal_hook::{
+    consts::{SIGINT, SIGQUIT},
+    iterator,
+};
+use std::fs::{File, OpenOptions};
+use std::{
+    error::Error,
+    io::{self, Write},
+    process, thread,
+};
 
 fn main() {
     if let Err(_) = register_signal_handlers() {
         println!("Signals are not handled properly");
     }
-    
+
     loop {
         execute_shell();
     }
 }
 
 /// Register UNIX system signals
-fn register_signal_handlers() -> Result<(), Box<dyn Error>>  {
+fn register_signal_handlers() -> Result<(), Box<dyn Error>> {
     let mut signals = iterator::Signals::new(&[SIGINT, SIGQUIT])?;
 
     // signal execution is passed to the child process
@@ -37,10 +44,7 @@ fn register_signal_handlers() -> Result<(), Box<dyn Error>>  {
 /// Run the minishell to execute user supplied instructions
 fn execute_shell() {
     let minishell = "ghost# ";
-    if let Err(e) = write_to_stdout(&minishell) {
-        eprintln!("Unable to write to stdout : {}", e);
-        process::exit(1);
-    }
+    write_to_stdout(&minishell).expect("Unable to write to standard output");
 
     let mut cmd_line = get_user_commands();
 
@@ -53,22 +57,30 @@ fn execute_shell() {
             if cmd_line.peek().eq("<") {
                 // skip redirection character
                 cmd_line.next();
-                // redirect stdin from a given file
-                let file_in = open_stdin_file(
-                    &cmd_line.next().unwrap()).unwrap();
-                proc.stdin(file_in);
+
+                // retrieve file name
+                if let Some(name) = cmd_line.next() {
+                    // redirect stdin from a given file
+                    if let Ok(file_in) = open_stdin_file(&name) {
+                        proc.stdin(file_in);
+                    } else {
+                        eprintln!("{}: No such file or directory", name); 
+                        return;
+                    }
+                };
             }
-            
+
             if cmd_line.peek().eq(">") {
                 // skip redirection character
                 cmd_line.next();
                 // redirect stdout to a give file
-                let file_out = open_stdout_file(
-                    &cmd_line.next().unwrap()).unwrap();
+                let file_out = open_stdout_file(&cmd_line.next().unwrap()).unwrap();
                 proc.stdout(file_out);
             }
 
-            if cmd_line.peek().is_empty() { break; }
+            if cmd_line.peek().is_empty() {
+                break;
+            }
         }
 
         // create child process and execute command
@@ -81,9 +93,7 @@ fn execute_shell() {
     } else {
         // execute command that has no redirections
         let cmd = cmd_line.get_args();
-        if let Err(_) = process::Command::new(&cmd[0])
-                                            .args(&cmd[1..])
-                                            .status() {
+        if let Err(_) = process::Command::new(&cmd[0]).args(&cmd[1..]).status() {
             eprintln!("{}: command not found!", &cmd[0]);
         }
     }
@@ -93,19 +103,17 @@ fn execute_shell() {
 /// If file doesn't exists create one
 fn open_stdout_file(file_name: &str) -> Result<File, io::Error> {
     let file = OpenOptions::new()
-                                .truncate(true)
-                                .write(true)
-                                .create(true)
-                                .open(file_name)?;
+        .truncate(true)
+        .write(true)
+        .create(true)
+        .open(file_name)?;
     Ok(file)
 }
 
 /// Redirect a std in from a given file to console.
 /// If file doesn't exist error is thrown
 fn open_stdin_file(file_name: &str) -> Result<File, io::Error> {
-    let file = OpenOptions::new()
-                                .read(true)
-                                .open(file_name)?;
+    let file = OpenOptions::new().read(true).open(file_name)?;
     Ok(file)
 }
 
@@ -123,7 +131,6 @@ fn get_user_commands() -> Tokenizer {
     if input.ends_with('\n') {
         input.pop();
     }
-    
+
     Tokenizer::new(&input)
 }
-
