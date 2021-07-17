@@ -1,0 +1,11 @@
+.
+..
+Cargo.lock
+Cargo.toml
+.git
+.gitignore
+.idea
+input.txt
+out
+src
+target

@@ -6,13 +6,12 @@ use signal_hook::{
     consts::{SIGINT, SIGQUIT},
     iterator,
 };
-use std::{fs::{File, OpenOptions}, io::Read};
+use std::fs::{File, OpenOptions};
 use std::{
     error::Error,
     io::{self, Write},
     process, thread,
 };
-
 
 fn main() {
     if let Err(_) = register_signal_handlers() {
@@ -71,38 +70,60 @@ fn execute_shell() {
     } else {
         // execute command that has no redirections
         let cmd = cmd_line.get_args();
-        if let Err(_) = process::Command::new(&cmd[0])
-                                        .args(&cmd[1..])
-                                        .status() {
+        if let Err(_) = process::Command::new(&cmd[0]).args(&cmd[1..]).status() {
             eprintln!("{}: command not found!", &cmd[0]);
         }
     }
 }
 
+/// If user supplies piped command this function splits it into
+/// two processes, executes them and pipes one being intput to the pipe
+/// and the other being output from the pipe, which ends up displayed
 pub fn piped_cmd_execution(cmd_line: &mut Tokenizer) -> Result<(), io::Error> {
-    let mut token_before_pipe = cmd_line.commands_before_pipe();
-    let before_pipe_cmd = token_before_pipe.get_args();
-    let after_pipe_cmd = cmd_line.get_args();
+    let mut tokens_before_pipe = cmd_line.commands_before_pipe();
 
-    // create a child process which will have input end of pipe open for stream
-    let proc = process::Command::new(&after_pipe_cmd[0])
-                                            .args(&after_pipe_cmd[1..])
-                                            .stdin(process::Stdio::piped())
-                                            .spawn();
-    
+    let mut after_pipe_cmd: Vec<String> = vec![];
+    let mut before_pipe_cmd: Vec<String> = vec![];
+
+    let mut proc = if cmd_line.has_redirection() {
+        redirect_cmd_execution(cmd_line)?
+    } else {
+        after_pipe_cmd = cmd_line.get_args();
+        // create a child process which will have input end of pipe open for stream
+        process::Command::new(&after_pipe_cmd[0])
+    };
+
+    // check if we have any arguments othwerise execute command
+    if after_pipe_cmd.len() > 0 {
+        proc.args(&after_pipe_cmd[1..]);
+    }
+    let child = proc.stdin(process::Stdio::piped()).spawn();
+
+    let mut proc2 = if tokens_before_pipe.has_redirection() {
+        redirect_cmd_execution(&mut tokens_before_pipe)?
+    } else {
+        before_pipe_cmd = tokens_before_pipe.get_args();
         // create child process that redirects its output
         // to the stdout end of the pipe.
         // this will execute command and send output
         // to the previously created process pipe.
-    process::Command::new(&before_pipe_cmd[0])
-                .args(&before_pipe_cmd[1..])
-                .stdout(proc.unwrap().stdin.unwrap())
-                .output()?;
+        process::Command::new(&before_pipe_cmd[0])
+    };
+
+    // check for arguments
+    if before_pipe_cmd.len() > 1 {
+        proc2.args(&before_pipe_cmd[1..]);
+    }
+
+    proc2.stdout(child.unwrap().stdin.unwrap()).output()?;
     Ok(())
 }
 
-pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> 
-                        Result<process::Command, io::Error> {
+
+/// If the user command has stream redirection this function is used
+/// to accomodate that. This is done by creating a redirection and returing
+/// a command which can then be spawned as a child processes
+pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Command, io::Error> {
     let mut redirection_count = [0; 2];
     let args = cmd_line.args_before_redirection();
 
@@ -124,8 +145,8 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) ->
                     Ok(f) => proc.stdin(f),
                     Err(e) => {
                         eprintln!("{}: No such file or directory", name);
-                        return Err(e)
-                    },
+                        return Err(e);
+                    }
                 };
             };
         }
@@ -153,9 +174,12 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) ->
 
     // check flags that we don't have excessive number of redirections
     if redirection_count[0] > 1 || redirection_count[1] > 1 {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                 "Invalid instruction for redication"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Invalid instruction for redication",
+        ));
     }
+
     Ok(proc)
 }
 
@@ -163,19 +187,17 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) ->
 /// If file doesn't exists create one
 fn open_stdout_file(file_name: &str) -> Result<File, io::Error> {
     let file = OpenOptions::new()
-                            .truncate(true)
-                            .write(true)
-                            .create(true)
-                            .open(file_name)?;
+        .truncate(true)
+        .write(true)
+        .create(true)
+        .open(file_name)?;
     Ok(file)
 }
 
 /// Redirect a std in from a given file to console.
 /// If file doesn't exist error is thrown
 fn open_stdin_file(file_name: &str) -> Result<File, io::Error> {
-    let file = OpenOptions::new()
-                            .read(true)
-                            .open(file_name)?;
+    let file = OpenOptions::new().read(true).open(file_name)?;
     Ok(file)
 }
 

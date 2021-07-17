@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct Tokenizer {
     current: Option<String>,
 }
