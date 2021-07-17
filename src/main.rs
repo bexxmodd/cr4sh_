@@ -48,10 +48,12 @@ fn execute_shell() {
     write_to_stdout(&minishell).expect("Unable to write to standard output");
 
     let mut cmd_line = get_user_commands();
-    let mut redirection_count= [0; 2];
+    let mut redirection_count = [0; 2];
 
     if cmd_line.has_redirection() {
         let args = cmd_line.args_before_redirection();
+
+        // create process that will execute shell command
         let mut proc = process::Command::new(&args[0]);
 
         proc.args(&args[1..]);
@@ -147,6 +149,8 @@ fn write_to_stdout(text: &str) -> io::Result<()> {
 /// fetch the user inputted commands
 fn get_user_commands() -> Tokenizer {
     let mut input = String::new();
+
+    // read user input
     io::stdin().read_line(&mut input).unwrap();
     if input.ends_with('\n') {
         input.pop();
