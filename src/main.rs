@@ -50,31 +50,10 @@ fn execute_shell() {
     let mut cmd_line = get_user_commands();
 
     if cmd_line.is_pipe() {
-        let mut token_before_pipe = cmd_line.commands_before_pipe();
-        let before_pipe_cmd = token_before_pipe.get_args();
-        let after_pipe_cmd = cmd_line.get_args();
-
-        // create a child process which will have input end of pipe open for stream
-        let proc = process::Command::new(&after_pipe_cmd[0])
-                                                .args(&after_pipe_cmd[1..])
-                                                .stdin(process::Stdio::piped())
-                                                .spawn();
-        
-        if let Ok(p) = proc {
-            // create child process that redirects its output
-            // to the stdout end of the pipe.
-            // this will execute command and send output
-            //to the previously created process pipe.
-            if let Err(e) = process::Command::new(&before_pipe_cmd[0])
-                                                .args(&before_pipe_cmd[1..])
-                                                .stdout(p.stdin.unwrap())
-                                                .output() {
-                eprintln!("Command not possible: {}", e);
-            }
-        } else {
-            eprintln!("{}: command not found!", before_pipe_cmd[0]);
-            return;
+        if let Err(e) = piped_cmd_execution(&mut cmd_line) {
+            eprintln!("Command can't be executed!: {}", e);
         }
+        return;
     } else if cmd_line.has_redirection() {
         let cmd = cmd_line.peek().clone();
         let mut proc = match redirect_cmd_execution(&mut cmd_line) {
@@ -100,6 +79,27 @@ fn execute_shell() {
     }
 }
 
+pub fn piped_cmd_execution(cmd_line: &mut Tokenizer) -> Result<(), io::Error> {
+    let mut token_before_pipe = cmd_line.commands_before_pipe();
+    let before_pipe_cmd = token_before_pipe.get_args();
+    let after_pipe_cmd = cmd_line.get_args();
+
+    // create a child process which will have input end of pipe open for stream
+    let proc = process::Command::new(&after_pipe_cmd[0])
+                                            .args(&after_pipe_cmd[1..])
+                                            .stdin(process::Stdio::piped())
+                                            .spawn();
+    
+        // create child process that redirects its output
+        // to the stdout end of the pipe.
+        // this will execute command and send output
+        // to the previously created process pipe.
+    process::Command::new(&before_pipe_cmd[0])
+                .args(&before_pipe_cmd[1..])
+                .stdout(proc.unwrap().stdin.unwrap())
+                .output()?;
+    Ok(())
+}
 
 pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> 
                         Result<process::Command, io::Error> {
