@@ -1,4 +1,3 @@
-// use sysinfo::SystemExt;
 pub mod tokenizer;
 
 use crate::tokenizer::*;
@@ -44,13 +43,13 @@ fn register_signal_handlers() -> Result<(), Box<dyn Error>> {
 /// Run the minishell to execute user supplied instructions
 fn execute_shell() {
     let minishell = "ghost# ";
-    write_to_stdout(&minishell).expect("Unable to write to standard output");
+    write_to_stdout(&minishell).expect("Unable to write to stdout");
 
     let mut cmd_line = get_user_commands();
 
     if cmd_line.is_pipe() {
         if let Err(e) = piped_cmd_execution(&mut cmd_line) {
-            eprintln!("Command can't be executed!: {}", e);
+            eprintln!("Error: {}", e);
         }
         return;
     } else if cmd_line.has_redirection() {
@@ -58,10 +57,11 @@ fn execute_shell() {
         let mut proc = match redirect_cmd_execution(&mut cmd_line) {
             Ok(p) => p,
             Err(e) => {
-                eprintln!("{}", e);
+                eprintln!("Error: {}", e);
                 return;
             }
         };
+
         if let Ok(mut c) = proc.spawn() {
             c.wait().unwrap();
         } else {
@@ -70,7 +70,9 @@ fn execute_shell() {
     } else {
         // execute command that has no redirections
         let cmd = cmd_line.get_args();
-        if let Err(_) = process::Command::new(&cmd[0]).args(&cmd[1..]).status() {
+        if let Err(_) = process::Command::new(&cmd[0])
+                                    .args(&cmd[1..])
+                                    .status() {
             eprintln!("{}: command not found!", &cmd[0]);
         }
     }
@@ -97,7 +99,7 @@ pub fn piped_cmd_execution(cmd_line: &mut Tokenizer) -> Result<(), io::Error> {
     if after_pipe_cmd.len() > 0 {
         proc.args(&after_pipe_cmd[1..]);
     }
-    let child = proc.stdin(process::Stdio::piped()).spawn();
+    let child = proc.stdin(process::Stdio::piped()).spawn()?;
 
     let mut proc2 = if tokens_before_pipe.has_redirection() {
         redirect_cmd_execution(&mut tokens_before_pipe)?
@@ -115,15 +117,15 @@ pub fn piped_cmd_execution(cmd_line: &mut Tokenizer) -> Result<(), io::Error> {
         proc2.args(&before_pipe_cmd[1..]);
     }
 
-    proc2.stdout(child.unwrap().stdin.unwrap()).output()?;
+    proc2.stdout(child.stdin.unwrap()).output()?;
     Ok(())
 }
-
 
 /// If the user command has stream redirection this function is used
 /// to accomodate that. This is done by creating a redirection and returing
 /// a command which can then be spawned as a child processes
-pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Command, io::Error> {
+pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer)
+                -> Result<process::Command, io::Error> {
     let mut redirection_count = [0; 2];
     let args = cmd_line.args_before_redirection();
 
@@ -143,10 +145,7 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Comma
                 // redirect stdin from a given file
                 match open_stdin_file(&name) {
                     Ok(f) => proc.stdin(f),
-                    Err(e) => {
-                        eprintln!("{}: No such file or directory", name);
-                        return Err(e);
-                    }
+                    Err(e) => return Err(e),
                 };
             };
         }
@@ -159,10 +158,7 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Comma
             if let Some(name) = cmd_line.next() {
                 match open_stdout_file(&name) {
                     Ok(f) => proc.stdout(f),
-                    Err(e) => {
-                        eprintln!("{}: No such file or directory", name);
-                        return Err(e);
-                    }
+                    Err(e) => return Err(e),
                 };
             }
         }
@@ -176,7 +172,7 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Comma
     if redirection_count[0] > 1 || redirection_count[1] > 1 {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "Invalid instruction for redication",
+            "Invalid instructions for redication",
         ));
     }
 
