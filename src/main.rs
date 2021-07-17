@@ -6,7 +6,7 @@ use signal_hook::{
     consts::{SIGINT, SIGQUIT},
     iterator,
 };
-use std::fs::{File, OpenOptions};
+use std::{fs::{File, OpenOptions}, io::Read};
 use std::{
     error::Error,
     io::{self, Write},
@@ -49,7 +49,24 @@ fn execute_shell() {
 
     let mut cmd_line = get_user_commands();
 
-    if cmd_line.has_redirection() {
+    if cmd_line.is_pipe() {
+        let mut before_pipe_cmd = cmd_line.commands_before_pipe();
+        let cmd = before_pipe_cmd.get_args();
+        let cmd2 = cmd_line.get_args();
+        let mut proc2 = process::Command::new(&cmd2[0])
+                                                .args(&cmd2[1..])
+                                                .stdin(process::Stdio::piped())
+                                                .spawn()
+                                                .unwrap();
+
+        let mut proc1 = process::Command::new(&cmd[0])
+                                                .args(&cmd[1..])
+                                                .stdout(proc2.stdin.unwrap())
+                                                .output()
+                                                .unwrap();
+    }
+
+    else if cmd_line.has_redirection() {
         let cmd = cmd_line.peek().clone();
         let mut proc = match redirect_cmd_execution(&mut cmd_line) {
             Ok(p) => p,

@@ -21,6 +21,18 @@ impl Tokenizer {
         args
     }
 
+    pub fn commands_before_pipe(&mut self) -> Tokenizer {
+        let mut before = String::new();
+        while let Some(a) = self.next() {
+            if a.eq("|") {
+                break;
+            }
+            before.push_str(&a);
+            before.push_str(" ");
+        }
+        Tokenizer::new(&before)
+    }
+
     pub fn get_args(&mut self) -> Vec<String> {
         let mut args = vec![];
         while let Some(a) = self.next() {
