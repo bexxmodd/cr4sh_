@@ -29,6 +29,10 @@ impl Tokenizer {
         args
     }
 
+    pub fn is_pipe(&self) -> bool {
+        self.contains("|")
+    }
+
     pub fn contains(&self, pattern: &str) -> bool {
         if let Some(cur) = self.current.as_ref() {
             cur.contains(pattern)

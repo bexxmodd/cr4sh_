@@ -48,65 +48,20 @@ fn execute_shell() {
     write_to_stdout(&minishell).expect("Unable to write to standard output");
 
     let mut cmd_line = get_user_commands();
-    let mut redirection_count = [0; 2];
 
     if cmd_line.has_redirection() {
-        let args = cmd_line.args_before_redirection();
-
-        // create process that will execute shell command
-        let mut proc = process::Command::new(&args[0]);
-
-        proc.args(&args[1..]);
-
-        loop {
-            if cmd_line.peek().eq("<") {
-                cmd_line.next(); // skip redirection character
-                redirection_count[0] += 1;
-
-                // retrieve file name if file/directory doesn't
-                // exist notify user and restart the shell
-                if let Some(name) = cmd_line.next() {
-                    // redirect stdin from a given file
-                    if let Ok(file_in) = open_stdin_file(&name) {
-                        proc.stdin(file_in);
-                    } else {
-                        eprintln!("{}: No such file or directory", name);
-                        return;
-                    }
-                };
+        let cmd = cmd_line.peek().clone();
+        let mut proc = match redirect_cmd_execution(&mut cmd_line) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("{}", e);
+                return;
             }
-
-            if cmd_line.peek().eq(">") {
-                cmd_line.next(); // skip redirection character
-                redirection_count[1] += 1;
-
-                // redirect stdout to a give file
-                if let Some(name) = cmd_line.next() {
-                    if let Ok(file_out) = open_stdout_file(&name) {
-                        proc.stdout(file_out);
-                    } else {
-                        eprintln!("{}: No such file or directory", name);
-                        return;
-                    }
-                }
-            }
-
-            if cmd_line.peek().is_empty() {
-                break;
-            }
-        }
-
-        // check flags that we don't have excessive number of redirections
-        if redirection_count[0] > 1 || redirection_count[1] > 1 {
-            eprintln!("invalid instructions for stream redirection");
-            return;
-        }
-        // create child process and execute command
-        // after that wait for the process to complete
+        };
         if let Ok(mut c) = proc.spawn() {
             c.wait().unwrap();
         } else {
-            eprintln!("{}: command not found!", &args[0]);
+            eprintln!("{}: command not found!", cmd);
         }
     } else {
         // execute command that has no redirections
@@ -117,6 +72,65 @@ fn execute_shell() {
             eprintln!("{}: command not found!", &cmd[0]);
         }
     }
+}
+
+
+pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> 
+                        Result<process::Command, io::Error> {
+    let mut redirection_count = [0; 2];
+    let args = cmd_line.args_before_redirection();
+
+    // create process that will execute shell command
+    let mut proc = process::Command::new(&args[0]);
+
+    proc.args(&args[1..]);
+
+    loop {
+        if cmd_line.peek().eq("<") {
+            cmd_line.next(); // skip redirection character
+            redirection_count[0] += 1;
+
+            // retrieve file name if file/directory doesn't
+            // exist notify user and restart the shell
+            if let Some(name) = cmd_line.next() {
+                // redirect stdin from a given file
+                match open_stdin_file(&name) {
+                    Ok(f) => proc.stdin(f),
+                    Err(e) => {
+                        eprintln!("{}: No such file or directory", name);
+                        return Err(e)
+                    },
+                };
+            };
+        }
+
+        if cmd_line.peek().eq(">") {
+            cmd_line.next(); // skip redirection character
+            redirection_count[1] += 1;
+
+            // redirect stdout to a give file
+            if let Some(name) = cmd_line.next() {
+                match open_stdout_file(&name) {
+                    Ok(f) => proc.stdout(f),
+                    Err(e) => {
+                        eprintln!("{}: No such file or directory", name);
+                        return Err(e);
+                    }
+                };
+            }
+        }
+
+        if cmd_line.peek().is_empty() {
+            break;
+        }
+    }
+
+    // check flags that we don't have excessive number of redirections
+    if redirection_count[0] > 1 || redirection_count[1] > 1 {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                 "Invalid instruction for redication"));
+    }
+    Ok(proc)
 }
 
 /// Redirect a std out to a give file.
