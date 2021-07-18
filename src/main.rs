@@ -5,7 +5,11 @@ use signal_hook::{
     consts::{SIGINT, SIGQUIT},
     iterator,
 };
-use std::{env::{set_current_dir}, fs::{File, OpenOptions}, path::{Path, PathBuf}};
+use std::{
+    env::{current_dir, set_current_dir},
+    fs::{File, OpenOptions},
+    path::PathBuf,
+};
 use std::{
     error::Error,
     io::{self, Write},
@@ -15,6 +19,22 @@ use std::{
 pub struct ShellName {
     name: String,
     current_dir: String,
+    pub shell_name: String,
+}
+
+impl ShellName {
+    pub fn new(name: &str, current_dir: &str) -> Self {
+        ShellName {
+            name: name.to_string(),
+            current_dir: current_dir.to_string(),
+            shell_name: name.to_string() + "@shell:" + current_dir + "$ ",
+        }
+    }
+
+    pub fn set_current_dir(&mut self, dir: &str) {
+        self.current_dir = dir.to_string();
+        self.shell_name = self.name.to_string() + "@shell:" + dir + "$ ";
+    }
 }
 
 fn main() {
@@ -22,12 +42,11 @@ fn main() {
         println!("Signals are not handled properly");
     }
 
+    let cur = current_dir().unwrap();
+    let cur = cur.strip_prefix(dirs::home_dir().unwrap()).unwrap();
+    let mut minishell = ShellName::new("ghost", cur.to_str().unwrap());
     loop {
-        let mut minishell = ShellName {
-            name: "ghost# ".to_string(),
-            current_dir: "~".to_string(),
-        };
-        execute_shell();
+        execute_shell(&mut minishell);
     }
 }
 
@@ -50,9 +69,8 @@ fn register_signal_handlers() -> Result<(), Box<dyn Error>> {
 }
 
 /// Run the minishell to execute user supplied instructions
-fn execute_shell() {
-    let minishell = "ghost# ";
-    write_to_stdout(&minishell).expect("Unable to write to stdout");
+fn execute_shell(shell_name: &mut ShellName) {
+    write_to_stdout(&shell_name.shell_name).expect("Unable to write to stdout");
 
     let mut cmd_line = get_user_commands();
 
@@ -70,10 +88,13 @@ fn execute_shell() {
             }
         } else {
             dirs::home_dir().unwrap()
-        }; 
+        };
 
         if let Err(e) = set_current_dir(new_path) {
             eprintln!("Error: {}", e);
+        } else {
+            let cur = current_dir().unwrap();
+            shell_name.set_current_dir(&cur.to_str().unwrap());
         }
 
         return;
@@ -100,9 +121,7 @@ fn execute_shell() {
     } else {
         // execute command that has no redirections
         let cmd = cmd_line.get_args();
-        if let Err(_) = process::Command::new(&cmd[0])
-                                    .args(&cmd[1..])
-                                    .status() {
+        if let Err(_) = process::Command::new(&cmd[0]).args(&cmd[1..]).status() {
             eprintln!("{}: command not found!", &cmd[0]);
         }
     }
@@ -154,8 +173,7 @@ pub fn piped_cmd_execution(cmd_line: &mut Tokenizer) -> Result<(), io::Error> {
 /// If the user command has stream redirection this function is used
 /// to accomodate that. This is done by creating a redirection and returing
 /// a command which can then be spawned as a child processes
-pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer)
-                -> Result<process::Command, io::Error> {
+pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Command, io::Error> {
     let mut redirection_count = [0; 2];
     let args = cmd_line.args_before_redirection();
 
