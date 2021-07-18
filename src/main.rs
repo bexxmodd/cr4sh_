@@ -5,12 +5,17 @@ use signal_hook::{
     consts::{SIGINT, SIGQUIT},
     iterator,
 };
-use std::fs::{File, OpenOptions};
+use std::{env::{set_current_dir}, fs::{File, OpenOptions}, path::{Path, PathBuf}};
 use std::{
     error::Error,
     io::{self, Write},
     process, thread,
 };
+
+pub struct ShellName {
+    name: String,
+    current_dir: String,
+}
 
 fn main() {
     if let Err(_) = register_signal_handlers() {
@@ -18,6 +23,10 @@ fn main() {
     }
 
     loop {
+        let mut minishell = ShellName {
+            name: "ghost# ".to_string(),
+            current_dir: "~".to_string(),
+        };
         execute_shell();
     }
 }
@@ -47,7 +56,28 @@ fn execute_shell() {
 
     let mut cmd_line = get_user_commands();
 
-    if cmd_line.is_pipe() {
+    if cmd_line.starts_with("cd") {
+        assert_eq!("cd".to_string(), cmd_line.next().unwrap());
+        // let mut new_path = PathBuf::new();
+        let path = cmd_line.next();
+
+        let new_path: PathBuf = if path.is_some() {
+            let tmp = path.unwrap();
+            if tmp.eq("~") {
+                dirs::home_dir().unwrap()
+            } else {
+                PathBuf::from(tmp)
+            }
+        } else {
+            dirs::home_dir().unwrap()
+        }; 
+
+        if let Err(e) = set_current_dir(new_path) {
+            eprintln!("Error: {}", e);
+        }
+
+        return;
+    } else if cmd_line.is_pipe() {
         if let Err(e) = piped_cmd_execution(&mut cmd_line) {
             eprintln!("Error: {}", e);
         }
@@ -136,7 +166,7 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer)
 
     loop {
         if cmd_line.peek().eq("<") {
-            cmd_line.next(); // skip redirection character
+            assert_eq!("<".to_string(), cmd_line.next().unwrap());
             redirection_count[0] += 1;
 
             // retrieve file name if file/directory doesn't
@@ -151,7 +181,7 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer)
         }
 
         if cmd_line.peek().eq(">") {
-            cmd_line.next(); // skip redirection character
+            assert_eq!(">".to_string(), cmd_line.next().unwrap());
             redirection_count[1] += 1;
 
             // redirect stdout to a give file

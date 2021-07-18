@@ -1,8 +1,9 @@
+
 /// struct that reads a line of string splits on
 /// white space and creates iterator of tokens
 #[derive(Debug)]
 pub struct Tokenizer {
-    // holds string as an option and splits on 
+    // holds string as an option and splits on
     // whitespace only when next() is called.
     current: Option<String>,
 }
@@ -17,7 +18,7 @@ impl Tokenizer {
 
     /// If the `current` line contains redirection ">" or "<"
     /// returns all tokens before redirection as a vector of strings.
-    /// Else is found returns all the tokens as vector of strings. 
+    /// Else is found returns all the tokens as vector of strings.
     /// This method call consumes tokens from `current`
     pub fn args_before_redirection(&mut self) -> Vec<String> {
         let mut args = vec![];
@@ -77,22 +78,27 @@ impl Tokenizer {
         }
     }
 
+    /// Check if the current lines starts with a given prefix
+    pub fn starts_with(&self, prefix: &str) -> bool {
+        if let Some(cur) = self.current.as_ref() {
+            if prefix.eq(&cur[..prefix.len()]) {
+                return true
+            }
+        }
+        return false
+    }
+
     /// peek what is the next token without consuming it.
     /// this returns a copy of the next token.
     pub fn peek(&self) -> String {
         let mut res = "".to_string();
         if let Some(cur) = self.current.clone() {
-            for c in cur.chars().into_iter() {
-                if c.eq(&' ') {
-                    break;
-                } else {
-                    res.push(c);
-                }
-            }
+            let mut vals  = cur.split(' ');
+            res = vals.next().unwrap().to_string()
+
         }
         res
     }
-
 }
 
 impl Iterator for Tokenizer {
@@ -118,7 +124,6 @@ impl Iterator for Tokenizer {
             None
         }
     }
-
 }
 
 #[cfg(test)]
@@ -142,7 +147,7 @@ mod tests {
     #[test]
     fn test_multiple_calls() {
         let mut line = Tokenizer::new(&"Hello Darkness My Old Friend");
-        
+
         assert_eq!("Hello".to_string(), line.next().unwrap());
         assert_eq!("Darkness".to_string(), line.next().unwrap());
         assert_eq!("My".to_string(), line.next().unwrap());
@@ -184,6 +189,11 @@ mod tests {
         let mut v = line.commands_before_pipe();
         assert_eq!("ls".to_string(), v.next().unwrap());
         assert_eq!("-a".to_string(), v.next().unwrap());
+    }
 
+    #[test]
+    fn test_prefix() {
+        let line = Tokenizer::new("this line starts with this");
+        assert!(line.starts_with("this"));
     }
 }
