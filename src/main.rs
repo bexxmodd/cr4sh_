@@ -83,7 +83,7 @@ fn execute_shell(shell_name: &mut ShellName) {
             eprintln!("{}: command not found!", cmd);
         }
     } else {
-        // execute command that has no redirections
+        // execute command that has no redirection
         let cmd = cmd_line.get_args();
         if let Err(_) = process::Command::new(&cmd[0])
                                     .args(&cmd[1..])
@@ -93,6 +93,8 @@ fn execute_shell(shell_name: &mut ShellName) {
     }
 }
 
+/// Implementation of a Linux's `cd` command,
+/// which stands for change directory.
 pub fn change_directory(shell_name: &mut ShellName, line: &mut Tokenizer) {
     let path = line.next();
 
@@ -116,7 +118,7 @@ pub fn change_directory(shell_name: &mut ShellName, line: &mut Tokenizer) {
 }
 
 /// If user supplies piped command this function splits it into
-/// two processes, executes them and pipes one being intput to the pipe
+/// two processes, executes them and pipes one being input to the pipe
 /// and the other being output from the pipe, which ends up displayed
 pub fn piped_cmd_execution(cmd_line: &mut Tokenizer) -> Result<(), io::Error> {
     let mut tokens_before_pipe = cmd_line.commands_before_pipe();
@@ -132,7 +134,7 @@ pub fn piped_cmd_execution(cmd_line: &mut Tokenizer) -> Result<(), io::Error> {
         process::Command::new(&after_pipe_cmd[0])
     };
 
-    // check if we have any arguments othwerise execute command
+    // check if we have any arguments otherwise execute command
     if after_pipe_cmd.len() > 0 {
         proc.args(&after_pipe_cmd[1..]);
     }
@@ -159,7 +161,7 @@ pub fn piped_cmd_execution(cmd_line: &mut Tokenizer) -> Result<(), io::Error> {
 }
 
 /// If the user command has stream redirection this function is used
-/// to accomodate that. This is done by creating a redirection and returing
+/// to accommodate that. This is done by creating a redirection and returning
 /// a command which can then be spawned as a child processes
 pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Command, io::Error> {
     let mut redirection_count = [0; 2];
@@ -204,11 +206,11 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Comma
         }
     }
 
-    // check flags that we don't have excessive number of redirections
+    // check flags that we don't have excessive number of redirection
     if redirection_count[0] > 1 || redirection_count[1] > 1 {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "Invalid instructions for redication",
+            "Invalid instructions for redirection",
         ));
     }
 

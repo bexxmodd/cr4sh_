@@ -46,3 +46,14 @@ fn build_user_minishell() -> String {
 
     username
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn generate_shellname() {
+        let sh = ShellName::new("home");
+        assert_eq!("home".to_string(), sh.current_dir);
+    }
+}

@@ -9,7 +9,7 @@ pub struct Tokenizer {
 }
 
 impl Tokenizer {
-    /// constractor
+    /// constructor
     pub fn new(line: &str) -> Self {
         Tokenizer {
             current: Some(line.to_string()),
