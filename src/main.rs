@@ -5,6 +5,7 @@ use signal_hook::{
     consts::{SIGINT, SIGQUIT},
     iterator,
 };
+use sysinfo::SystemExt;
 use std::{
     env::{current_dir, set_current_dir},
     fs::{File, OpenOptions},
@@ -23,17 +24,26 @@ pub struct ShellName {
 }
 
 impl ShellName {
-    pub fn new(name: &str, current_dir: &str) -> Self {
+    pub fn new(current_dir: &str) -> Self {
+        let user = build_user_minishell();
         ShellName {
-            name: name.to_string(),
+            name: user.clone(),
             current_dir: current_dir.to_string(),
-            shell_name: name.to_string() + "@shell:" + current_dir + "$ ",
+            shell_name: user + ":" + current_dir + "$ ",
         }
     }
 
     pub fn set_current_dir(&mut self, dir: &str) {
-        self.current_dir = dir.to_string();
-        self.shell_name = self.name.to_string() + "@shell:" + dir + "$ ";
+        let home = dirs::home_dir().unwrap();
+        if let Some(h) = home.to_str() {
+            if dir.starts_with(h) {
+                self.current_dir = dir.replace(h, "~");
+            } else {
+                self.current_dir = dir.to_string();
+            }
+        }
+
+        self.shell_name = self.name.to_string() + ":" + &self.current_dir + "$ ";
     }
 }
 
@@ -44,7 +54,7 @@ fn main() {
 
     let cur = current_dir().unwrap();
     let cur = cur.strip_prefix(dirs::home_dir().unwrap()).unwrap();
-    let mut minishell = ShellName::new("ghost", cur.to_str().unwrap());
+    let mut minishell = ShellName::new(cur.to_str().unwrap());
     loop {
         execute_shell(&mut minishell);
     }
@@ -76,27 +86,7 @@ fn execute_shell(shell_name: &mut ShellName) {
 
     if cmd_line.starts_with("cd") {
         assert_eq!("cd".to_string(), cmd_line.next().unwrap());
-        // let mut new_path = PathBuf::new();
-        let path = cmd_line.next();
-
-        let new_path: PathBuf = if path.is_some() {
-            let tmp = path.unwrap();
-            if tmp.eq("~") {
-                dirs::home_dir().unwrap()
-            } else {
-                PathBuf::from(tmp)
-            }
-        } else {
-            dirs::home_dir().unwrap()
-        };
-
-        if let Err(e) = set_current_dir(new_path) {
-            eprintln!("Error: {}", e);
-        } else {
-            let cur = current_dir().unwrap();
-            shell_name.set_current_dir(&cur.to_str().unwrap());
-        }
-
+        change_directory(shell_name, &mut cmd_line);
         return;
     } else if cmd_line.is_pipe() {
         if let Err(e) = piped_cmd_execution(&mut cmd_line) {
@@ -121,9 +111,33 @@ fn execute_shell(shell_name: &mut ShellName) {
     } else {
         // execute command that has no redirections
         let cmd = cmd_line.get_args();
-        if let Err(_) = process::Command::new(&cmd[0]).args(&cmd[1..]).status() {
+        if let Err(_) = process::Command::new(&cmd[0])
+                                    .args(&cmd[1..])
+                                    .status() {
             eprintln!("{}: command not found!", &cmd[0]);
         }
+    }
+}
+
+pub fn change_directory(shell_name: &mut ShellName, line: &mut Tokenizer) {
+    let path = line.next();
+
+    let new_path: PathBuf = if path.is_some() {
+        let tmp = path.unwrap();
+        if tmp.eq("~") {
+            dirs::home_dir().unwrap()
+        } else {
+            PathBuf::from(tmp)
+        }
+    } else {
+        dirs::home_dir().unwrap()
+    };
+
+    if let Err(e) = set_current_dir(new_path) {
+        eprintln!("Error: {}", e);
+    } else {
+        let cur = current_dir().unwrap();
+        shell_name.set_current_dir(&cur.to_str().unwrap());
     }
 }
 
@@ -263,4 +277,23 @@ fn get_user_commands() -> Tokenizer {
     }
 
     Tokenizer::new(&input)
+}
+
+/// build a minishell name for the display
+fn build_user_minishell() -> String {
+    let mut username = String::new();
+
+    // get user name
+    let u = users::get_user_by_uid(
+        users::get_current_uid()
+    ).unwrap();
+
+    username.push_str(&u.name().to_string_lossy());
+    username.push_str("@");
+
+    // get system name
+    let system = sysinfo::System::new_all();
+    username.push_str(&system.get_name().unwrap());
+
+    username
 }
