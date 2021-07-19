@@ -19,8 +19,6 @@ use std::{
 };
 
 
-
-
 fn main() {
     if let Err(_) = register_signal_handlers() {
         println!("Signals are not handled properly");
