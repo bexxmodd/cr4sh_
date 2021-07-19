@@ -12,7 +12,7 @@ impl ShellName {
         ShellName {
             name: user.clone(),
             current_dir: current_dir.to_string(),
-            shell_name: user + ":" + current_dir + "$ ",
+            shell_name: user + ":" + current_dir + "§ ",
         }
     }
 
@@ -26,13 +26,13 @@ impl ShellName {
             }
         }
 
-        self.shell_name = self.name.to_string() + ":" + &self.current_dir + "$ ";
+        self.shell_name = self.name.to_string() + ":" + &self.current_dir + "§ ";
     }
 }
 
 /// build a minishell name for the display
 fn build_user_minishell() -> String {
-    let mut username = String::new();
+    let mut username = String::from("«");
 
     // get user name
     let u = users::get_user_by_uid(users::get_current_uid()).unwrap();
@@ -43,6 +43,7 @@ fn build_user_minishell() -> String {
     // get system name
     let system = sysinfo::System::new_all();
     username.push_str(&system.get_name().unwrap());
+    username.push_str("»");
 
     username
 }

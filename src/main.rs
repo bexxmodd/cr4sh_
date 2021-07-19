@@ -56,24 +56,33 @@ fn register_signal_handlers() -> Result<(), Box<dyn Error>> {
 fn execute_shell(shell_name: &mut ShellName) {
     write_to_stdout(&shell_name.shell_name).expect("Unable to write to stdout");
 
-    let mut cmd_line = get_user_commands();
+    let mut cmd_line = match get_user_commands() {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            return
+        }
+    };
 
     if cmd_line.starts_with("cd") {
-        assert_eq!("cd".to_string(), cmd_line.next().unwrap());
+        if !cmd_line.next().unwrap().eq("cd") {
+            eprintln!("Error: invalid command");
+            return
+        }
         change_directory(shell_name, &mut cmd_line);
-        return;
+        return
     } else if cmd_line.is_pipe() {
         if let Err(e) = piped_cmd_execution(&mut cmd_line) {
             eprintln!("Error: {}", e);
         }
-        return;
+        return
     } else if cmd_line.has_redirection() {
         let cmd = cmd_line.peek().clone();
         let mut proc = match redirect_cmd_execution(&mut cmd_line) {
             Ok(p) => p,
             Err(e) => {
                 eprintln!("Error: {}", e);
-                return;
+                return
             }
         };
 
@@ -243,15 +252,19 @@ fn write_to_stdout(text: &str) -> io::Result<()> {
 }
 
 /// fetch the user inputted commands
-fn get_user_commands() -> Tokenizer {
+fn get_user_commands() -> Result<Tokenizer, io::Error> {
     let mut input = String::new();
 
     // read user input
     io::stdin().read_line(&mut input).unwrap();
+
+    if input.len() < 2 || !input.chars().next().unwrap().is_alphabetic() {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid command"))
+    }
     if input.ends_with('\n') {
         input.pop();
     }
 
-    Tokenizer::new(&input)
+    Ok(Tokenizer::new(&input))
 }
 

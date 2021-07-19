@@ -81,6 +81,9 @@ impl Tokenizer {
     /// Check if the current lines starts with a given prefix
     pub fn starts_with(&self, prefix: &str) -> bool {
         if let Some(cur) = self.current.as_ref() {
+            if prefix.len() > cur.len() {
+                return false
+            }
             if prefix.eq(&cur[..prefix.len()]) {
                 return true
             }
