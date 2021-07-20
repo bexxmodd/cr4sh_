@@ -17,4 +17,4 @@ users = "0.11"
 sysinfo = "0.17"
 dirs = "3.0"
 chrono = "0.4"
-
+termion = "*"

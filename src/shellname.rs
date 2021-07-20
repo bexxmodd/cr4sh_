@@ -1,4 +1,5 @@
 use sysinfo::SystemExt;
+use termion::color;
 
 pub struct ShellName {
     name: String,
@@ -12,7 +13,14 @@ impl ShellName {
         ShellName {
             name: user.clone(),
             current_dir: current_dir.to_string(),
-            shell_name: user + ":" + current_dir + "§ ",
+            shell_name: format!(
+                "{}{}{}:{}§ {}",
+                color::Fg(color::Red),
+                user,
+                color::Fg(color::Cyan),
+                current_dir,
+                color::Fg(color::Reset),
+            ),
         }
     }
 
@@ -25,8 +33,14 @@ impl ShellName {
                 self.current_dir = dir.to_string();
             }
         }
-
-        self.shell_name = self.name.to_string() + ":" + &self.current_dir + "§ ";
+        self.shell_name = format!(
+                "{}{}{}:{}§ {}",
+                color::Fg(color::Red),
+                self.name.to_string(),
+                color::Fg(color::Cyan),
+                &self.current_dir,
+                color::Fg(color::Reset),
+        )
     }
 }
 
