@@ -14,11 +14,13 @@ impl ShellName {
             name: user.clone(),
             current_dir: current_dir.to_string(),
             shell_name: format!(
-                "{}{}{}:{}§ {}",
+                "{}┌{}{}:{} {}\n{}└─§ {}",
                 color::Fg(color::Red),
                 user,
                 color::Fg(color::Cyan),
                 current_dir,
+                color::Fg(color::Reset),
+                color::Fg(color::Red),
                 color::Fg(color::Reset),
             ),
         }
@@ -34,11 +36,13 @@ impl ShellName {
             }
         }
         self.shell_name = format!(
-                "{}{}{}:{}§ {}",
+                "{}┌{}{}:{} {}\n{}└─§ {}",
                 color::Fg(color::Red),
                 self.name.to_string(),
                 color::Fg(color::Cyan),
                 &self.current_dir,
+                color::Fg(color::Reset),
+                color::Fg(color::Red),
                 color::Fg(color::Reset),
         )
     }
