@@ -256,13 +256,13 @@ fn get_user_commands() -> Result<Tokenizer, io::Error> {
     // read user input
     io::stdin().read_line(&mut input).unwrap();
 
-    if input.len() < 2 || !input.chars().next().unwrap().is_alphabetic() {
+    if input.trim().len() < 2 {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid command"))
     }
     if input.ends_with('\n') {
         input.pop();
     }
 
-    Ok(Tokenizer::new(&input))
+    Ok(Tokenizer::new(input.trim()))
 }
 
