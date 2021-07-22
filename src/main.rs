@@ -1,23 +1,33 @@
 pub mod shellname;
 pub mod tokenizer;
 pub mod touch;
+pub mod cd;
 
-use crate::shellname::*;
-use crate::tokenizer::*;
+#[macro_use]
+extern crate lazy_static;
+
+use std::collections::HashSet;
+use crate::{shellname::*, tokenizer::*};
+use nix::sys::ptrace::cont;
 use signal_hook::{
     consts::{SIGINT, SIGQUIT},
     iterator,
 };
 use std::{
-    env::{current_dir, set_current_dir},
+    env::current_dir,
     fs::{File, OpenOptions},
-    path::PathBuf,
 };
 use std::{
     error::Error,
     io::{self, Write},
     process, thread,
 };
+
+lazy_static! {
+    static ref CUSTOM_FN: HashSet<&'static str> = {
+        vec!["cd", "source", "touch", "history"].into_iter().collect()
+    };
+}
 
 fn main() {
     if let Err(_) = register_signal_handlers() {
@@ -67,13 +77,11 @@ fn execute_shell(shell_name: &mut ShellName) {
 
     let tokens = cmd_line.get_multiple_tokens("&&");
     for mut token in tokens {
-
-        if token.starts_with("cd") {
-            if !token.next().unwrap().eq("cd") {
-                eprintln!("Error: invalid command");
-                return;
+        if CUSTOM_FN.contains(&token.peek()[0..]) {
+            match &token.peek()[0..] {
+                "cd" => cd::change_directory(shell_name, &mut token),
+                _ => println!("Not implemented yet"),
             }
-            change_directory(shell_name, &mut token);
             continue;
         } else if token.is_pipe() {
             if let Err(e) = piped_cmd_execution(&mut token) {
@@ -102,30 +110,6 @@ fn execute_shell(shell_name: &mut ShellName) {
                 eprintln!("{}: command not found!", &cmd[0]);
             }
         }
-    }
-}
-
-/// Implementation of a Linux's `cd` command,
-/// which stands for change directory.
-pub fn change_directory(shell_name: &mut ShellName, line: &mut Tokenizer) {
-    let path = line.next();
-
-    let new_path: PathBuf = if path.is_some() {
-        let tmp = path.unwrap();
-        if tmp.eq("~") {
-            dirs::home_dir().unwrap()
-        } else {
-            PathBuf::from(tmp)
-        }
-    } else {
-        dirs::home_dir().unwrap()
-    };
-
-    if let Err(e) = set_current_dir(new_path) {
-        eprintln!("Error: {}", e);
-    } else {
-        let cur = current_dir().unwrap();
-        shell_name.set_current_dir(&cur.to_str().unwrap());
     }
 }
 

@@ -52,6 +52,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea221b5284a47e40033bf9b66f35f984ec0ea2931eb03505246cd27a963f981b"
 
 [[package]]
+name = "cr4sh_"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "crossbeam-channel",
+ "ctrlc",
+ "dirs",
+ "fs-set-times",
+ "lazy_static",
+ "log",
+ "nix",
+ "signal-hook",
+ "sysinfo",
+ "termion",
+ "users",
+]
+
+[[package]]
 name = "crossbeam-channel"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -195,24 +214,6 @@ dependencies = [
  "cfg-if",
  "libc",
  "wasi",
-]
-
-[[package]]
-name = "ghost-inz-shell"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "chrono",
- "crossbeam-channel",
- "ctrlc",
- "dirs",
- "fs-set-times",
- "log",
- "nix",
- "signal-hook",
- "sysinfo",
- "termion",
- "users",
 ]
 
 [[package]]

@@ -1,27 +1,39 @@
+use crate::Tokenizer;
 use fs_set_times::{set_atime, set_mtime, SystemTimeSpec};
 use std::fs;
-use std::io::Result;
+use std::io::{Error, ErrorKind, Result};
 use std::path::Path;
-use std::thread;
 use std::time::SystemTime;
 
-pub fn touch(option: Option<String>, file: &str) -> Result<()> {
+pub fn touch(tokenizer: &mut Tokenizer) -> Result<()> {
+    let cmd = parse_command(tokenizer).unwrap();
     let mut flag = true;
-    let mut refer = None;
-    if let Some(op) = option {
-        for o in op.chars().into_iter() {
-            match o {
+    let mut refer = None; // will need when 'r' flag is implemented
+    if cmd.len() == 2 {
+        for op in cmd[1].chars().into_iter() {
+            match op {
                 'c' => flag = false,
-                'a' => set_time(file, refer.clone(), flag, set_atime)?,
-                'm' => set_time(file, refer.clone(), flag, set_mtime)?,
-                _ => eprintln!("{} is invalid operand", o),
+                'a' => set_time(&cmd[0], refer.clone(), flag, set_atime)?,
+                'm' => set_time(&cmd[0], refer.clone(), flag, set_mtime)?,
+                _ => eprintln!("{} is invalid operand", op),
             }
         }
     } else {
-        set_time(file, refer.clone(), flag, set_atime)?;
-        set_time(file, refer.clone(), flag, set_mtime)?;
+        set_time(&cmd[0], refer.clone(), flag, set_atime)?;
+        set_time(&cmd[0], refer.clone(), flag, set_mtime)?;
     }
     Ok(())
+}
+
+fn parse_command(tokenizer: &mut Tokenizer) -> Result<Vec<String>> {
+    assert_eq!("touch".to_string(), tokenizer.next().unwrap());
+    let mut res: Vec<_> = vec![];
+
+    if tokenizer.starts_with("-") {
+        res.push(tokenizer.next().unwrap());
+    }
+    res.push(tokenizer.next().unwrap());
+    Ok(res)
 }
 
 fn set_time(
@@ -36,6 +48,7 @@ fn set_time(
         } else {
             SystemTime::now()
         };
+
         func(src.to_string(), SystemTimeSpec::from(time))?;
     } else if flag {
         fs::File::create(src)?;
@@ -52,56 +65,68 @@ fn get_reference_timestamp(refer: &str) -> Option<SystemTime> {
 
 #[cfg(test)]
 mod tests {
-    use core::time;
-
     use super::*;
+    use core::time;
+    use std::thread::sleep;
 
     #[test]
-    fn create_file() {
-        let _ = touch(None, "test001.txt");
-        assert!(Path::new("test001.txt").exists());
-        if let Err(_) = fs::remove_file("test001.txt") {
-            eprintln!("Can't remove test.txt");
+    fn test_create_file() {
+        let filename = "test000.txt";
+        let _ = touch(None, filename);
+
+        assert!(Path::new(filename).exists());
+
+        if let Err(_) = fs::remove_file(filename) {
+            eprintln!("Can't remove {}", filename);
         }
     }
 
     #[test]
+    fn test_no_file_creation() {
+        let filename = "test001.txt";
+        let _ = touch(Some("c".to_string()), filename);
+        assert!(!Path::new(filename).exists());
+    }
+
+    #[test]
     fn test_updated_modification() {
-        let _ = touch(None, "test002.txt");
-        let mut metadata = fs::metadata("test002.txt").unwrap();
+        let filename = "test002.txt";
+        let _ = touch(None, filename);
+        let mut metadata = fs::metadata(filename).unwrap();
         let init_time = metadata.modified().unwrap();
 
-        thread::sleep(time::Duration::from_secs(1));
+        sleep(time::Duration::from_secs(1));
 
-        let _ = set_time("test002.txt", None, false, set_mtime);
-        metadata = fs::metadata("test002.txt").unwrap();
+        let _ = set_time(filename, None, false, set_mtime);
+        metadata = fs::metadata(filename).unwrap();
         let modified_time = metadata.modified().unwrap();
 
         let diff = modified_time.duration_since(init_time).unwrap().as_secs();
         assert_eq!(diff, time::Duration::from_secs(1).as_secs());
 
-        if let Err(_) = fs::remove_file("test002.txt") {
-            eprintln!("Can't remove test.txt");
+        if let Err(_) = fs::remove_file(filename) {
+            eprintln!("Can't remove {}", filename);
         }
     }
 
     #[test]
     fn test_updated_access() {
-        let _ = touch(None, "test003.txt");
-        let mut metadata = fs::metadata("test003.txt").unwrap();
+        let filename = "test003.txt";
+        let _ = touch(None, filename);
+        let mut metadata = fs::metadata(filename).unwrap();
         let init_time = metadata.accessed().unwrap();
 
-        thread::sleep(time::Duration::from_secs(1));
+        sleep(time::Duration::from_secs(1));
 
-        let _ = set_time("test003.txt", None, false, set_atime);
-        metadata = fs::metadata("test003.txt").unwrap();
+        let _ = set_time(filename, None, false, set_atime);
+        metadata = fs::metadata(filename).unwrap();
         let modified_time = metadata.accessed().unwrap();
 
         let diff = modified_time.duration_since(init_time).unwrap().as_secs();
         assert_eq!(diff, time::Duration::from_secs(1).as_secs());
 
-        if let Err(_) = fs::remove_file("test003.txt") {
-            eprintln!("Can't remove test.txt");
+        if let Err(_) = fs::remove_file(filename) {
+            eprintln!("Can't remove {}", filename);
         }
     }
 }
