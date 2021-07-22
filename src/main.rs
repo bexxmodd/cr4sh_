@@ -181,36 +181,33 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Comma
     proc.args(&args[1..]);
 
     loop {
-        if cmd_line.peek().eq("<") {
-            assert_eq!("<".to_string(), cmd_line.next().unwrap());
-            redirection_count[0] += 1;
+        match cmd_line.next().as_deref() {
+            Some("<") => {
+                redirection_count[0] += 1;
 
-            // retrieve file name if file/directory doesn't
-            // exist notify user and restart the shell
-            if let Some(name) = cmd_line.next() {
-                // redirect stdin from a given file
-                match open_stdin_file(&name) {
-                    Ok(f) => proc.stdin(f),
-                    Err(e) => return Err(e),
-                };
-            };
-        }
-
-        if cmd_line.peek().eq(">") {
-            assert_eq!(">".to_string(), cmd_line.next().unwrap());
-            redirection_count[1] += 1;
-
-            // redirect stdout to a give file
-            if let Some(name) = cmd_line.next() {
-                match open_stdout_file(&name) {
-                    Ok(f) => proc.stdout(f),
-                    Err(e) => return Err(e),
-                };
+                // retrieve file name if file/directory doesn't
+                // exist notify user and restart the shell
+                if let Some(name) = cmd_line.next() {
+                    // redirect stdin from a given file
+                    match open_stdin_file(&name) {
+                        Ok(f) => proc.stdin(f),
+                        Err(e) => return Err(e),
+                    };
+                }
             }
-        }
+            Some(">") => {
+                redirection_count[1] += 1;
 
-        if cmd_line.peek().is_empty() {
-            break;
+                // redirect stdout to a give file
+                if let Some(name) = cmd_line.next() {
+                    match open_stdout_file(&name) {
+                        Ok(f) => proc.stdout(f),
+                        Err(e) => return Err(e),
+                    };
+                }
+            },
+            None => break,
+            _ => continue,
         }
     }
 

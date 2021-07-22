@@ -90,7 +90,6 @@ impl Tokenizer {
         if let Some(cur) = self.current.clone() {
             let mut vals  = cur.split(' ');
             res = vals.next().unwrap().to_string()
-
         }
         res
     }
@@ -114,6 +113,10 @@ impl Tokenizer {
         }
         Tokenizer::new(&before)
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.current.is_none()
+    }
 }
 
 impl Iterator for Tokenizer {
@@ -124,13 +127,16 @@ impl Iterator for Tokenizer {
             let mut split: Vec<_> = s.split(' ').collect();
             let nxt = split.remove(0).to_string();
 
+            // check if strings are left in the vector
+            // if yes build string back and store in current
             if split.is_empty() {
                 self.current = None;
             } else {
                 self.current = Some(split.join(" "));
             }
 
-            if nxt.is_empty() {
+            if nxt.len() < 1 {
+                self.current = None;
                 None
             } else {
                 Some(nxt)
