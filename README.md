@@ -8,5 +8,6 @@ TODO:
 - [x] Allow chain of commands when `&&` is supplied
 - [ ] Handle `&` symbol to send command as a background process
 - [ ] Handle arrow, home, end keyboard inputs and cursor movement
-- [ ] Implement `history` functionality
-- [ ] Implement dot/source function
+- [ ] Implement `source` function
+- [ ] Implement `history` function
+- [ ] Implement `dot/source` function

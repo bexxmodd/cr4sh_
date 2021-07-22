@@ -1,5 +1,6 @@
 pub mod shellname;
 pub mod tokenizer;
+pub mod touch;
 
 use crate::shellname::*;
 use crate::tokenizer::*;

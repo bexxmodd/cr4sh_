@@ -81,4 +81,11 @@ mod test {
         let sh = ShellName::new("home");
         assert_eq!("home".to_string(), sh.current_dir);
     }
+
+    #[test]
+    fn test_dir_change() {
+        let mut sh = ShellName::new("home");
+        sh.set_current_dir("~");
+        assert_eq!("~".to_string(), sh.current_dir);
+    }
 }
