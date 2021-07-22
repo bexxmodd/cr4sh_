@@ -10,11 +10,12 @@ pub fn touch(tokenizer: &mut Tokenizer) -> Result<()> {
     let mut flag = true;
     let mut refer = None; // will need when 'r' flag is implemented
     if cmd.len() == 2 {
-        for op in cmd[1].chars().into_iter() {
+        for op in cmd[0].chars().into_iter() {
             match op {
                 'c' => flag = false,
-                'a' => set_time(&cmd[0], refer.clone(), flag, set_atime)?,
-                'm' => set_time(&cmd[0], refer.clone(), flag, set_mtime)?,
+                'a' => set_time(&cmd[1], refer.clone(), flag, set_atime)?,
+                'm' => set_time(&cmd[1], refer.clone(), flag, set_mtime)?,
+                '-' => continue,
                 _ => eprintln!("{} is invalid operand", op),
             }
         }
@@ -58,7 +59,10 @@ fn set_time(
 
 fn get_reference_timestamp(refer: &str) -> Option<SystemTime> {
     if Path::new(refer).exists() {
-        return Some(fs::metadata(refer).unwrap().modified().unwrap());
+        return Some(fs::metadata(refer)
+                        .unwrap()
+                        .modified()
+                        .unwrap());
     }
     None
 }
@@ -72,7 +76,8 @@ mod tests {
     #[test]
     fn test_create_file() {
         let filename = "test000.txt";
-        let _ = touch(None, filename);
+        let mut token = Tokenizer::new("touch test000.txt");
+        let _ = touch(&mut token);
 
         assert!(Path::new(filename).exists());
 
@@ -84,14 +89,16 @@ mod tests {
     #[test]
     fn test_no_file_creation() {
         let filename = "test001.txt";
-        let _ = touch(Some("c".to_string()), filename);
+        let mut token = Tokenizer::new("touch -c test001.txt");
+        let _ = touch(&mut token);
         assert!(!Path::new(filename).exists());
     }
 
     #[test]
     fn test_updated_modification() {
         let filename = "test002.txt";
-        let _ = touch(None, filename);
+        let mut token = Tokenizer::new("touch test002.txt");
+        let _ = touch(&mut token);
         let mut metadata = fs::metadata(filename).unwrap();
         let init_time = metadata.modified().unwrap();
 
@@ -112,7 +119,8 @@ mod tests {
     #[test]
     fn test_updated_access() {
         let filename = "test003.txt";
-        let _ = touch(None, filename);
+        let mut token = Tokenizer::new("touch test003.txt");
+        let _ = touch(&mut token);
         let mut metadata = fs::metadata(filename).unwrap();
         let init_time = metadata.accessed().unwrap();
 

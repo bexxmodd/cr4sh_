@@ -8,7 +8,6 @@ extern crate lazy_static;
 
 use std::collections::HashSet;
 use crate::{shellname::*, tokenizer::*};
-use nix::sys::ptrace::cont;
 use signal_hook::{
     consts::{SIGINT, SIGQUIT},
     iterator,
@@ -80,6 +79,12 @@ fn execute_shell(shell_name: &mut ShellName) {
         if CUSTOM_FN.contains(&token.peek()[0..]) {
             match &token.peek()[0..] {
                 "cd" => cd::change_directory(shell_name, &mut token),
+                "touch" => {
+                    if let Err(e) = touch::touch(&mut token) {
+                        eprintln!("{}", e);
+                        return
+                    }
+                },
                 _ => println!("Not implemented yet"),
             }
             continue;
