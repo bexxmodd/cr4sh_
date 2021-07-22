@@ -1,7 +1,7 @@
 
 /// struct that reads a line of string splits on
 /// white space and creates iterator of tokens
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Tokenizer {
     // holds string as an option and splits on
     // whitespace only when next() is called.
@@ -38,15 +38,7 @@ impl Tokenizer {
     /// `current` line, so if no pipe symbol is found, it will
     /// reconstruct a new Tokenizer while disposing current one.
     pub fn commands_before_pipe(&mut self) -> Tokenizer {
-        let mut before = String::new();
-        while let Some(a) = self.next() {
-            if a.eq("|") {
-                break;
-            }
-            before.push_str(&a);
-            before.push_str(" ");
-        }
-        Tokenizer::new(&before)
+        self._split_tokenizer("|")
     }
 
     /// get all the argument from the `current` line
@@ -101,6 +93,26 @@ impl Tokenizer {
 
         }
         res
+    }
+
+    pub fn get_multiple_tokens(&mut self, pattern: &str) -> Vec<Tokenizer> {
+        let mut toks: Vec<_> = vec![];
+        while self.current.is_some() {
+            toks.push(self._split_tokenizer(pattern))
+        }
+        toks
+    }
+
+    pub fn _split_tokenizer(&mut self, pattern: &str) -> Tokenizer {
+        let mut before = String::new();
+        while let Some(a) = self.next() {
+            if a.eq(pattern) {
+                break;
+            }
+            before.push_str(&a);
+            before.push_str(" ");
+        }
+        Tokenizer::new(&before)
     }
 }
 

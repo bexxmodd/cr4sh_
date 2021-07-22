@@ -1,8 +1,8 @@
-pub mod tokenizer;
 pub mod shellname;
+pub mod tokenizer;
 
-use crate::tokenizer::*;
 use crate::shellname::*;
+use crate::tokenizer::*;
 use signal_hook::{
     consts::{SIGINT, SIGQUIT},
     iterator,
@@ -18,7 +18,6 @@ use std::{
     process, thread,
 };
 
-
 fn main() {
     if let Err(_) = register_signal_handlers() {
         println!("Signals are not handled properly");
@@ -26,7 +25,10 @@ fn main() {
 
     let cur = current_dir().unwrap();
     let cur = cur.strip_prefix(dirs::home_dir().unwrap()).unwrap();
+
+    // create initial shell terminal display
     let mut minishell = ShellName::new(cur.to_str().unwrap());
+
     loop {
         execute_shell(&mut minishell);
     }
@@ -58,44 +60,46 @@ fn execute_shell(shell_name: &mut ShellName) {
         Ok(t) => t,
         Err(e) => {
             eprintln!("Error: {}", e);
-            return
+            return;
         }
     };
 
-    if cmd_line.starts_with("cd") {
-        if !cmd_line.next().unwrap().eq("cd") {
-            eprintln!("Error: invalid command");
-            return
-        }
-        change_directory(shell_name, &mut cmd_line);
-        return
-    } else if cmd_line.is_pipe() {
-        if let Err(e) = piped_cmd_execution(&mut cmd_line) {
-            eprintln!("Error: {}", e);
-        }
-        return
-    } else if cmd_line.has_redirection() {
-        let cmd = cmd_line.peek().clone();
-        let mut proc = match redirect_cmd_execution(&mut cmd_line) {
-            Ok(p) => p,
-            Err(e) => {
-                eprintln!("Error: {}", e);
-                return
-            }
-        };
+    let tokens = cmd_line.get_multiple_tokens("&&");
+    for mut token in tokens {
 
-        if let Ok(mut c) = proc.spawn() {
-            c.wait().unwrap();
+        if token.starts_with("cd") {
+            if !token.next().unwrap().eq("cd") {
+                eprintln!("Error: invalid command");
+                return;
+            }
+            change_directory(shell_name, &mut token);
+            continue;
+        } else if token.is_pipe() {
+            if let Err(e) = piped_cmd_execution(&mut token) {
+                eprintln!("Error: {}", e);
+            }
+            continue;
+        } else if token.has_redirection() {
+            let cmd = token.peek().clone();
+            let mut proc = match redirect_cmd_execution(&mut token) {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    return;
+                }
+            };
+
+            if let Ok(mut c) = proc.spawn() {
+                c.wait().unwrap();
+            } else {
+                eprintln!("{}: command not found!", cmd);
+            }
         } else {
-            eprintln!("{}: command not found!", cmd);
-        }
-    } else {
-        // execute command that has no redirection
-        let cmd = cmd_line.get_args();
-        if let Err(_) = process::Command::new(&cmd[0])
-                                    .args(&cmd[1..])
-                                    .status() {
-            eprintln!("{}: command not found!", &cmd[0]);
+            // execute command that has no redirection
+            let cmd = token.get_args();
+            if let Err(_) = process::Command::new(&cmd[0]).args(&cmd[1..]).status() {
+                eprintln!("{}: command not found!", &cmd[0]);
+            }
         }
     }
 }
@@ -257,7 +261,10 @@ fn get_user_commands() -> Result<Tokenizer, io::Error> {
     io::stdin().read_line(&mut input).unwrap();
 
     if input.trim().len() < 2 {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid command"))
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Invalid command",
+        ));
     }
     if input.ends_with('\n') {
         input.pop();
@@ -265,4 +272,3 @@ fn get_user_commands() -> Result<Tokenizer, io::Error> {
 
     Ok(Tokenizer::new(input.trim()))
 }
-
