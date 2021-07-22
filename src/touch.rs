@@ -1,20 +1,24 @@
 use crate::Tokenizer;
 use fs_set_times::{set_atime, set_mtime, SystemTimeSpec};
 use std::fs;
-use std::io::{Error, ErrorKind, Result};
+use std::io:: Result;
 use std::path::Path;
 use std::time::SystemTime;
 
 pub fn touch(tokenizer: &mut Tokenizer) -> Result<()> {
     let cmd = parse_command(tokenizer).unwrap();
     let mut flag = true;
-    let mut refer = None; // will need when 'r' flag is implemented
+
+    // will need when 'r' flag is implemented
+    let refer = None;
+
     if cmd.len() == 2 {
         for op in cmd[0].chars().into_iter() {
             match op {
                 'c' => flag = false,
                 'a' => set_time(&cmd[1], refer.clone(), flag, set_atime)?,
                 'm' => set_time(&cmd[1], refer.clone(), flag, set_mtime)?,
+                'r' => println!("Not implemented yet"),
                 '-' => continue,
                 _ => eprintln!("{} is invalid operand", op),
             }
@@ -30,6 +34,7 @@ fn parse_command(tokenizer: &mut Tokenizer) -> Result<Vec<String>> {
     assert_eq!("touch".to_string(), tokenizer.next().unwrap());
     let mut res: Vec<_> = vec![];
 
+    // If `-` char is present that means we have OPTIONS flag
     if tokenizer.starts_with("-") {
         res.push(tokenizer.next().unwrap());
     }
@@ -69,6 +74,8 @@ fn get_reference_timestamp(refer: &str) -> Option<SystemTime> {
 
 #[cfg(test)]
 mod tests {
+    /// TODO: write unit tests for -c -a -m flags
+    
     use super::*;
     use core::time;
     use std::thread::sleep;

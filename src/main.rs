@@ -1,17 +1,17 @@
+pub mod cd;
 pub mod shellname;
 pub mod tokenizer;
 pub mod touch;
-pub mod cd;
 
 #[macro_use]
 extern crate lazy_static;
 
-use std::collections::HashSet;
 use crate::{shellname::*, tokenizer::*};
 use signal_hook::{
     consts::{SIGINT, SIGQUIT},
     iterator,
 };
+use std::collections::HashSet;
 use std::{
     env::current_dir,
     fs::{File, OpenOptions},
@@ -24,7 +24,9 @@ use std::{
 
 lazy_static! {
     static ref CUSTOM_FN: HashSet<&'static str> = {
-        vec!["cd", "source", "touch", "history"].into_iter().collect()
+        vec!["cd", "source", "touch", "history"]
+            .into_iter()
+            .collect()
     };
 }
 
@@ -75,17 +77,11 @@ fn execute_shell(shell_name: &mut ShellName) {
     };
 
     let tokens = cmd_line.get_multiple_tokens("&&");
+
     for mut token in tokens {
         if CUSTOM_FN.contains(&token.peek()[0..]) {
-            match &token.peek()[0..] {
-                "cd" => cd::change_directory(shell_name, &mut token),
-                "touch" => {
-                    if let Err(e) = touch::touch(&mut token) {
-                        eprintln!("{}", e);
-                        return
-                    }
-                },
-                _ => println!("Not implemented yet"),
+            if let Err(e) = execute_custom_fn(shell_name, &mut token) {
+                eprint!("{}", e);
             }
             continue;
         } else if token.is_pipe() {
@@ -116,6 +112,16 @@ fn execute_shell(shell_name: &mut ShellName) {
             }
         }
     }
+}
+
+fn execute_custom_fn(shell_name: &mut ShellName,
+    token: &mut Tokenizer) -> Result<(), io::Error> {
+    match &token.peek()[0..] {
+        "cd" => cd::change_directory(shell_name, token),
+        "touch" => touch::touch(token)?,
+        _ => println!("Not implemented yet"),
+    }
+    Ok(())
 }
 
 /// If user supplies piped command this function splits it into
