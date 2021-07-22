@@ -58,7 +58,7 @@ impl Tokenizer {
 
     /// check if the `current` Tokenizer has redirection directive
     pub fn has_redirection(&self) -> bool {
-        self.contains(">") || self.contains("<")
+        self.contains(">") || self.contains("<") && !self.contains(">>")
     }
 
     /// checks if the `current` contains given string pattern

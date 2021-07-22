@@ -24,7 +24,7 @@ use std::{
 
 lazy_static! {
     static ref CUSTOM_FN: HashSet<&'static str> = {
-        vec!["cd", "source", "touch", "history"]
+        vec!["cd", "source", "touch", "history", ">"]
             .into_iter()
             .collect()
     };
@@ -42,7 +42,7 @@ fn main() {
     let mut minishell = ShellName::new(cur.to_str().unwrap());
 
     loop {
-        execute_shell(&mut minishell);
+        run_shell(&mut minishell);
     }
 }
 
@@ -65,7 +65,7 @@ fn register_signal_handlers() -> Result<(), Box<dyn Error>> {
 }
 
 /// Run the minishell to execute user supplied instructions
-fn execute_shell(shell_name: &mut ShellName) {
+fn run_shell(shell_name: &mut ShellName) {
     write_to_stdout(&shell_name.shell_name).expect("Unable to write to stdout");
 
     let mut cmd_line = match get_user_commands() {
@@ -114,11 +114,12 @@ fn execute_shell(shell_name: &mut ShellName) {
     }
 }
 
-fn execute_custom_fn(shell_name: &mut ShellName,
-    token: &mut Tokenizer) -> Result<(), io::Error> {
+/// This function is used to execute shell defined functions
+fn execute_custom_fn(shell_name: &mut ShellName, token: &mut Tokenizer) -> Result<(), io::Error> {
     match &token.peek()[0..] {
         "cd" => cd::change_directory(shell_name, token),
-        "touch" => touch::touch(token)?,
+        "touch" | ">" => touch::touch(token)?,
+
         _ => println!("Not implemented yet"),
     }
     Ok(())

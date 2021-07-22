@@ -31,7 +31,8 @@ pub fn touch(tokenizer: &mut Tokenizer) -> Result<()> {
 }
 
 fn parse_command(tokenizer: &mut Tokenizer) -> Result<Vec<String>> {
-    assert_eq!("touch".to_string(), tokenizer.next().unwrap());
+    tokenizer.next();
+
     let mut res: Vec<_> = vec![];
 
     // If `-` char is present that means we have OPTIONS flag
