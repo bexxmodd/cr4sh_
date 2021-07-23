@@ -1,12 +1,12 @@
-pub mod cd;
-pub mod shellname;
-pub mod tokenizer;
-pub mod touch;
+mod customs;
+mod shellname;
+mod tokenizer;
 
 #[macro_use]
 extern crate lazy_static;
 
 use crate::{shellname::*, tokenizer::*};
+use crate::customs::{cd, touch};
 use signal_hook::{
     consts::{SIGINT, SIGQUIT},
     iterator,

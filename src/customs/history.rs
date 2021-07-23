@@ -1,4 +1,4 @@
-use chrono::prelude;
+use chrono::{DateTime, Utc};
 
 pub struct HistoryEntry {
     line: String,

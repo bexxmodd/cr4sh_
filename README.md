@@ -13,3 +13,5 @@ TODO:
     - [ ] need to finish `r` parsing
 - [ ] Implement `history` function
 - [ ] Implement `dot/source` function
+- [ ] Implement redirection for custom functions
+- [ ] Implement piping for custom functions
