@@ -92,7 +92,6 @@ fn get_reference_timestamp(refer: &str) -> Option<SystemTime> {
 
 #[cfg(test)]
 mod tests {
-    /// TODO: write unit tests for -c -a -m flags
     use super::*;
     use core::time;
     use std::thread::sleep;
