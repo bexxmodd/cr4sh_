@@ -9,6 +9,7 @@ TODO:
 - [x] Handle append (`>>`) directive
 - [ ] Handle `&` symbol to send command as a background process
 - [ ] Handle arrow, home, end keyboard inputs and cursor movement
-- [ ] Implement `touch` function
+- [ ] Implement `touch` function:
+    - [ ] need to finish `r` parsing
 - [ ] Implement `history` function
 - [ ] Implement `dot/source` function
