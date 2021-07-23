@@ -1,7 +1,7 @@
 
 /// struct that reads a line of string splits on
 /// white space and creates iterator of tokens
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Tokenizer {
     // holds string as an option and splits on
     // whitespace only when next() is called.
@@ -23,7 +23,9 @@ impl Tokenizer {
     pub fn args_before_redirection(&mut self) -> Vec<String> {
         let mut args = vec![];
         while self.current.is_some() {
-            if self.peek().eq(">") || self.peek().eq("<") {
+            if self.peek().eq(">") ||
+            self.peek().eq("<") ||
+            self.peek().eq(">>") {
                 break;
             } else {
                 args.push(self.next().unwrap());
@@ -58,7 +60,9 @@ impl Tokenizer {
 
     /// check if the `current` Tokenizer has redirection directive
     pub fn has_redirection(&self) -> bool {
-        self.contains(">") || self.contains("<") && !self.contains(">>")
+        self.contains(">") 
+        || self.contains("<") 
+        || self.contains(">>")
     }
 
     /// checks if the `current` contains given string pattern
@@ -111,7 +115,7 @@ impl Tokenizer {
             before.push_str(&a);
             before.push_str(" ");
         }
-        Tokenizer::new(&before)
+        Tokenizer::new(&before.trim())
     }
 
     pub fn is_empty(&self) -> bool {
@@ -135,8 +139,7 @@ impl Iterator for Tokenizer {
                 self.current = Some(split.join(" "));
             }
 
-            if nxt.len() < 1 {
-                self.current = None;
+            if nxt.is_empty() {
                 None
             } else {
                 Some(nxt)

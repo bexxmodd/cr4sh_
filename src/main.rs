@@ -76,9 +76,7 @@ fn run_shell(shell_name: &mut ShellName) {
         }
     };
 
-    let tokens = cmd_line.get_multiple_tokens("&&");
-
-    for mut token in tokens {
+    for mut token in cmd_line.get_multiple_tokens("&&") {
         if CUSTOM_FN.contains(&token.peek()[0..]) {
             if let Err(e) = execute_custom_fn(shell_name, &mut token) {
                 eprint!("{}", e);
@@ -90,7 +88,6 @@ fn run_shell(shell_name: &mut ShellName) {
             }
             continue;
         } else if token.has_redirection() {
-            let cmd = token.peek().clone();
             let mut proc = match redirect_cmd_execution(&mut token) {
                 Ok(p) => p,
                 Err(e) => {
@@ -102,7 +99,7 @@ fn run_shell(shell_name: &mut ShellName) {
             if let Ok(mut c) = proc.spawn() {
                 c.wait().unwrap();
             } else {
-                eprintln!("{}: command not found!", cmd);
+                eprintln!("Invalid: command not found!");
             }
         } else {
             // execute command that has no redirection
@@ -194,7 +191,7 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Comma
                         Err(e) => return Err(e),
                     };
                 }
-            }
+            },
             Some(">") => {
                 redirection_count[1] += 1;
 
@@ -205,6 +202,11 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Comma
                         Err(e) => return Err(e),
                     };
                 }
+            },
+            Some(">>") => {
+                let f = append_stdout_file(&cmd_line.next().unwrap())?;
+                proc.stdout(f);
+                return Ok(proc);
             },
             None => break,
             _ => continue,
@@ -220,6 +222,14 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Comma
     }
 
     Ok(proc)
+}
+
+fn append_stdout_file(file_name: &str) -> Result<File, io::Error> {
+    let f = OpenOptions::new()
+                            .append(true)
+                            .create(true)
+                            .open(file_name)?;
+    Ok(f)
 }
 
 /// Redirect a std out to a give file.
