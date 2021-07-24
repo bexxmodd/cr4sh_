@@ -8,10 +8,10 @@ TODO:
 - [x] Allow chain of commands when `&&` is supplied
 - [x] Handle append (`>>`) directive
 - [ ] Handle `&` symbol to send command as a background process
-- [ ] Handle arrow, home, end keyboard inputs and cursor movement
-- [ ] Implement `touch` function:
-    - [ ] need to finish `r` parsing
+- [ ] Implement cursor to handle arrow, home, end keyboard inputs and cursor movement
+- [x] Implement `touch` function:
 - [ ] Implement `history` function
 - [ ] Implement `dot/source` function
-- [ ] Implement redirection for custom functions
+- [ ] Implement redirection for custom functions:
+    - [ ] add additional argument to functions for stdout file
 - [ ] Implement piping for custom functions

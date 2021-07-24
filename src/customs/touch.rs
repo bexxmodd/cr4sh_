@@ -11,7 +11,7 @@ pub fn touch(tokenizer: &mut Tokenizer) -> Result<()> {
 
     let mut newfile_index = 0usize;
     let mut reffile_index = 0usize;
-    let mut options_index = 0usize;
+    let mut options_index = usize::MAX;
     for (i, val) in cmd.iter().enumerate() {
         if val.starts_with("-") {
             options_index = i;
@@ -19,9 +19,7 @@ pub fn touch(tokenizer: &mut Tokenizer) -> Result<()> {
                 if cmd.len() > i + 1 {
                     reffile_index = i + 1;
                 } else {
-                    return Err(io::Error::new(
-                        ErrorKind::InvalidInput,
-                         "Invalid argument"));
+                    return Err(io::Error::new(ErrorKind::InvalidInput, "Invalid argument"));
                 }
                 if cmd.len() > i + 2 {
                     newfile_index = i + 2;
@@ -40,20 +38,21 @@ pub fn touch(tokenizer: &mut Tokenizer) -> Result<()> {
     } else {
         None
     };
-    if cmd.len() >= 2 {
+
+    if options_index < cmd.len() {
         for op in cmd[options_index].chars().into_iter() {
             match op {
-                'c' => create_flag = false,
-                'a' => set_time(&cmd[newfile_index], &refer, create_flag, set_atime)?,
-                'm' => set_time(&cmd[newfile_index], &refer, create_flag, set_mtime)?,
-                'r' => set_time(&cmd[newfile_index], &refer, create_flag, set_mtime)?,
                 '-' => continue,
+                'c' => create_flag = false,
+                'a' => set_time(&cmd[newfile_index..], &refer, create_flag, set_atime)?,
+                'm' => set_time(&cmd[newfile_index..], &refer, create_flag, set_mtime)?,
+                'r' => set_time(&cmd[newfile_index..], &refer, create_flag, set_mtime)?,
                 _ => eprintln!("{} is invalid operand", op),
             }
         }
     } else {
-        set_time(&cmd[newfile_index], &refer, create_flag, set_atime)?;
-        set_time(&cmd[newfile_index], &refer, create_flag, set_mtime)?;
+        set_time(&cmd[newfile_index..], &refer, create_flag, set_atime)?;
+        set_time(&cmd[newfile_index..], &refer, create_flag, set_mtime)?;
     }
     Ok(())
 }
@@ -65,7 +64,7 @@ fn parse_command(tokenizer: &mut Tokenizer) -> Result<Vec<String>> {
 }
 
 fn set_time(
-    src: &str,
+    src: &[String],
     refer: &Option<SystemTime>,
     flag: bool,
     func: fn(path: String, atime: SystemTimeSpec) -> Result<()>,
@@ -76,10 +75,12 @@ fn set_time(
         SystemTime::now()
     };
 
-    if !Path::new(src).exists() && flag {
-        fs::File::create(src)?;
-    } 
-    func(src.to_string(), SystemTimeSpec::from(time))?;
+    for f in src {
+        if !Path::new(f).exists() && flag {
+            fs::File::create(f)?;
+        }
+        func(f.to_string(), SystemTimeSpec::from(time))?;
+    }
     Ok(())
 }
 
@@ -118,6 +119,24 @@ mod tests {
     }
 
     #[test]
+    fn test_create_multiple_files() {
+        let files = ["multi01".to_string(), "multi02".to_string(), "multi03".to_string()];
+        let mut token = Tokenizer::new("touch multi01 multi02 multi03");
+        let res = touch(&mut token);
+        assert!(res.is_ok());
+
+        for f in files.iter() {
+            assert!(Path::new(f).exists());
+        }
+
+        for f in files.iter() {
+            if let Err(_) = fs::remove_file(f) {
+                eprintln!("Can't remove {}", f);
+            }
+        }
+    }
+
+    #[test]
     fn test_updated_modification() {
         let filename = "test002.txt";
         let mut token = Tokenizer::new("touch test002.txt");
@@ -127,7 +146,7 @@ mod tests {
 
         sleep(time::Duration::from_secs(1));
 
-        let _ = set_time(filename, &None, false, set_mtime);
+        let _ = set_time(&[filename.to_string()], &None, false, set_mtime);
         metadata = fs::metadata(filename).unwrap();
         let modified_time = metadata.modified().unwrap();
 
@@ -149,7 +168,7 @@ mod tests {
 
         sleep(time::Duration::from_secs(1));
 
-        let _ = set_time(filename, &None, false, set_atime);
+        let _ = set_time(&[filename.to_string()], &None, false, set_atime);
         metadata = fs::metadata(filename).unwrap();
         let modified_time = metadata.accessed().unwrap();
 
@@ -175,7 +194,10 @@ mod tests {
         let _ = touch(&mut token);
         let result_metadata = fs::metadata(filename).unwrap();
 
-        assert_eq!(metadata.modified().unwrap(), result_metadata.modified().unwrap());
+        assert_eq!(
+            metadata.modified().unwrap(),
+            result_metadata.modified().unwrap()
+        );
 
         if let Err(_) = fs::remove_file(filename) {
             eprintln!("Can't remove {}", filename);
@@ -183,6 +205,6 @@ mod tests {
 
         if let Err(_) = fs::remove_file("delme") {
             eprintln!("Can't remove delme");
-        } 
+        }
     }
 }
