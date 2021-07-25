@@ -279,6 +279,5 @@ fn get_user_commands() -> Result<Tokenizer, io::Error> {
     if input.ends_with('\n') {
         input.pop();
     }
-
     Ok(Tokenizer::new(input.trim()))
 }

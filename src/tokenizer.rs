@@ -8,7 +8,6 @@ pub struct Tokenizer {
     current: Option<String>,
     is_pipe: bool,
     has_redirection: bool,
-    count: u16, // number of commands supplied
 }
 
 impl Tokenizer {
@@ -26,13 +25,10 @@ impl Tokenizer {
             false
         };
 
-        let count = line.matches(" ").count() + 1;
-
         Tokenizer {
             current: Some(line.to_string()),
             is_pipe,
             has_redirection,
-            count: count as u16,
         }
     }
 
@@ -76,6 +72,9 @@ impl Tokenizer {
     pub fn get_args(&mut self) -> Vec<String> {
         let mut args = vec![];
         while let Some(a) = self.next() {
+            if a.eq("&&") {
+                break;
+            }
             args.push(a);
         }
         args
@@ -116,10 +115,18 @@ impl Tokenizer {
     /// peek what is the next token without consuming it.
     /// this returns a copy of the next token.
     pub fn peek(&self) -> String {
-        let mut res = "".to_string();
-        if let Some(cur) = self.current.clone() {
-            let mut vals  = cur.split(' ');
-            res = vals.next().unwrap().to_string()
+        let mut res = String::new();
+        if let Some(cur) = self.current.as_deref() {
+            let mut open = 0u8;
+            for c in cur.chars().into_iter() {
+                if c.eq(&'"') || c.eq(&'\'') {
+                    open = open ^ 1;
+                } else if c.eq(&' ') && open == 0 {
+                    break;
+                } else {
+                    res.push(c);
+                }
+            }
         }
         res
     }
@@ -138,10 +145,19 @@ impl Tokenizer {
             if a.eq(pattern) {
                 break;
             }
-            before.push_str(&a);
+            // if next value has space in it, that means user supplied
+            // text in quotation marks, & we preserve it in a new Tokenizer
+            if a.contains(" ") {
+                before.push_str("'");
+                before.push_str(&a);
+                before.push_str("'");
+            } else {
+                before.push_str(&a);
+            }
             before.push_str(" ");
         }
-        Tokenizer::new(&before.trim())
+        before.pop();
+        Tokenizer::new(&before)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -199,7 +215,7 @@ mod tests {
     }
 
     #[test]
-    fn two_word_string() {
+    fn test_two_word_string() {
         let mut line = Tokenizer::new(&"Hello World");
         assert_eq!("Hello".to_string(), line.next().unwrap());
         assert_eq!("World".to_string(), line.current.unwrap());
@@ -219,10 +235,13 @@ mod tests {
 
     #[test]
     fn test_peek() {
-        let mut line = Tokenizer::new(&"Hello Darkness > My");
+        let mut line = Tokenizer::new(&"Hello Darkness > \"My Oldie\"");
         assert_eq!("Hello".to_string(), line.peek());
         assert_eq!("Hello".to_string(), line.next().unwrap());
         assert_eq!("Darkness".to_string(), line.peek());
+        line.next();
+        line.next();
+        assert_eq!("My Oldie".to_string(), line.peek());
     }
 
     #[test]

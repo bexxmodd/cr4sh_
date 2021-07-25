@@ -116,6 +116,37 @@ mod tests {
     }
 
     #[test]
+    fn test_parser() {
+        let mut line = Tokenizer::new("trulala -a nu 'patom paidzom'");
+        let expected: Vec<String> = vec![
+            "-a".to_string(), "nu".to_string(), "patom paidzom".to_string()
+        ];
+        assert_eq!(expected, parse_command(&mut line).unwrap());
+
+
+    }
+
+    #[test]
+    fn test_create_with_space_in_name() {
+        let filename1 = "test file";
+        let filename2 = "second file";
+        let mut token = Tokenizer::new("touch 'test file' \"second file\"");
+
+        let _ = touch(&mut token);
+
+        assert!(Path::new(filename1).exists());
+        assert!(Path::new(filename2).exists());
+
+        if let Err(_) = fs::remove_file(filename1) {
+            eprintln!("Can't remove {}", filename1);
+        }
+
+        if let Err(_) = fs::remove_file(filename2) {
+            eprintln!("Can't remove {}", filename2);
+        }
+    }
+
+    #[test]
     fn test_no_file_creation() {
         let filename = "test001.txt";
         let mut token = Tokenizer::new("touch -c test001.txt");
