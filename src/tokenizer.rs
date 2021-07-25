@@ -153,25 +153,36 @@ impl Iterator for Tokenizer {
     type Item = String;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let mut stop = usize::MAX;
+        let mut nxt= String::new();
+        let mut remainder = String::new();
+
         if let Some(s) = &mut self.current {
-            let mut split: Vec<_> = s.split(' ').collect();
-            let nxt = split.remove(0).to_string();
-
-            // check if strings are left in the vector
-            // if yes build string back and store in current
-            if split.is_empty() {
-                self.current = None;
-            } else {
-                self.current = Some(split.join(" "));
+            let mut open = 0u8;
+            for (i, c) in s.chars().into_iter().enumerate() {
+                if c.eq(&'"') || c.eq(&'\'') {
+                    open = open ^ 1;
+                } else if c.eq(&' ') && open == 0 {
+                    stop = i + 1;
+                    break
+                } else {
+                    nxt.push(c);
+                }
             }
-
-            if nxt.is_empty() {
-                None
-            } else {
-                Some(nxt)
+            if stop < s.len() {
+                remainder = s[stop..].to_string();
             }
+        }
+
+        if remainder.is_empty() {
+            self.current = None
         } else {
+            self.current = Some(remainder);
+        }
+        if nxt.is_empty() {
             None
+        } else { 
+            Some(nxt)
         }
     }
 }
@@ -245,5 +256,16 @@ mod tests {
     fn test_prefix() {
         let line = Tokenizer::new("this line starts with this");
         assert!(line.starts_with("this"));
+    }
+    
+    #[test]
+    fn test_quotation_marks() {
+        let mut line = Tokenizer::new("echo \"Hello World\" 'Rust Lang' Yay!");
+        
+        assert_eq!("echo".to_string(), line.next().unwrap());
+        assert_eq!("Hello World".to_string(), line.next().unwrap());
+        assert_eq!("Rust Lang".to_string(), line.next().unwrap());
+        assert_eq!("Yay!".to_string(), line.next().unwrap());
+        assert_eq!(None, line.next());
     }
 }
