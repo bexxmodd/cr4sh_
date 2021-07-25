@@ -1,18 +1,38 @@
 
 /// struct that reads a line of string splits on
 /// white space and creates iterator of tokens
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Tokenizer {
     // holds string as an option and splits on
     // whitespace only when next() is called.
     current: Option<String>,
+    is_pipe: bool,
+    has_redirection: bool,
+    count: u16, // number of commands supplied
 }
 
 impl Tokenizer {
     /// constructor
     pub fn new(line: &str) -> Self {
+        let is_pipe = if line.contains(" | ") {
+            true
+        } else {
+            false
+        };
+
+        let has_redirection = if line.contains(" >") || line.contains(" < ") {
+            true
+        } else {
+            false
+        };
+
+        let count = line.matches(" ").count() + 1;
+
         Tokenizer {
             current: Some(line.to_string()),
+            is_pipe,
+            has_redirection,
+            count: count as u16,
         }
     }
 
@@ -21,6 +41,10 @@ impl Tokenizer {
     /// Else is found returns all the tokens as vector of strings.
     /// This method call consumes tokens from `current`
     pub fn args_before_redirection(&mut self) -> Vec<String> {
+        if !self.has_redirection() {
+            return self.get_args()
+        }
+
         let mut args = vec![];
         while self.current.is_some() {
             if self.peek().eq(">") ||
@@ -40,7 +64,11 @@ impl Tokenizer {
     /// `current` line, so if no pipe symbol is found, it will
     /// reconstruct a new Tokenizer while disposing current one.
     pub fn commands_before_pipe(&mut self) -> Tokenizer {
-        self._split_tokenizer("|")
+        if !self.is_pipe() {
+            return self.clone()
+        } else {
+            self._split_tokenizer("|")
+        }
     }
 
     /// get all the argument from the `current` line
@@ -55,14 +83,12 @@ impl Tokenizer {
 
     /// checks if the `current` Tokenizer has pipe directive
     pub fn is_pipe(&self) -> bool {
-        self.contains("|")
+        self.is_pipe
     }
 
     /// check if the `current` Tokenizer has redirection directive
     pub fn has_redirection(&self) -> bool {
-        self.contains(">") 
-        || self.contains("<") 
-        || self.contains(">>")
+        self.has_redirection
     }
 
     /// checks if the `current` contains given string pattern

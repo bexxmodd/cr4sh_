@@ -1,5 +1,6 @@
 use crate::Tokenizer;
 use fs_set_times::{set_atime, set_mtime, SystemTimeSpec};
+use std::collections::HashSet;
 use std::io::{ErrorKind, Result};
 use std::path::Path;
 use std::time::SystemTime;
@@ -59,7 +60,11 @@ pub fn touch(tokenizer: &mut Tokenizer) -> Result<()> {
 
 fn parse_command(tokenizer: &mut Tokenizer) -> Result<Vec<String>> {
     tokenizer.next();
-    let res: Vec<_> = tokenizer.collect();
+    let symbols: HashSet<_> = 
+        vec!["~", "#", "@", "<", ">", "&", "|", ">", "%", "*", "(", ")", "!"]
+            .into_iter()
+            .collect();
+    let res: Vec<_> = tokenizer.filter(|v| !symbols.contains(&v[0..1])).collect();
     Ok(res)
 }
 

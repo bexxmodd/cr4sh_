@@ -23,6 +23,7 @@ use std::{
 };
 
 lazy_static! {
+    /// Global HashSet that contains all the internally defined shell functions
     static ref CUSTOM_FN: HashSet<&'static str> = {
         vec!["cd", "source", "touch", "history", ">"]
             .into_iter()
@@ -66,7 +67,8 @@ fn register_signal_handlers() -> Result<(), Box<dyn Error>> {
 
 /// Run the minishell to execute user supplied instructions
 fn run_shell(shell_name: &mut ShellName) {
-    write_to_stdout(&shell_name.shell_name).expect("Unable to write to stdout");
+    write_to_stdout(&shell_name.shell_name)
+                .expect("Unable to write to stdout");
 
     let mut cmd_line = match get_user_commands() {
         Ok(t) => t,
@@ -104,7 +106,9 @@ fn run_shell(shell_name: &mut ShellName) {
         } else {
             // execute command that has no redirection
             let cmd = token.get_args();
-            if let Err(_) = process::Command::new(&cmd[0]).args(&cmd[1..]).status() {
+            if let Err(_) = process::Command::new(&cmd[0])
+                                            .args(&cmd[1..])
+                                            .status() {
                 eprintln!("{}: command not found!", &cmd[0]);
             }
         }
@@ -112,7 +116,8 @@ fn run_shell(shell_name: &mut ShellName) {
 }
 
 /// This function is used to execute shell defined functions
-fn execute_custom_fn(shell_name: &mut ShellName, token: &mut Tokenizer) -> Result<(), io::Error> {
+fn execute_custom_fn(shell_name: &mut ShellName,
+                    token: &mut Tokenizer) -> Result<(), io::Error> {
     match &token.peek()[0..] {
         "cd" => cd::change_directory(shell_name, token),
         "touch" | ">" => touch::touch(token)?,
@@ -179,6 +184,12 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Comma
 
     loop {
         match cmd_line.next().as_deref() {
+            // command asked for append
+            Some(">>") => {
+                let f = append_stdout_file(&cmd_line.next().unwrap())?;
+                proc.stdout(f);
+                return Ok(proc);
+            },
             Some("<") => {
                 redirection_count[0] += 1;
 
@@ -202,11 +213,6 @@ pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Comma
                         Err(e) => return Err(e),
                     };
                 }
-            },
-            Some(">>") => {
-                let f = append_stdout_file(&cmd_line.next().unwrap())?;
-                proc.stdout(f);
-                return Ok(proc);
             },
             None => break,
             _ => continue,
