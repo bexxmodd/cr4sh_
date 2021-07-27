@@ -1,6 +1,8 @@
+#![allow(dead_code)]
 use chrono::{DateTime, Utc};
 
-pub struct HistoryEntry {
+struct HistEntry {
     line: String,
     timestamp: DateTime<Utc>,
+    
 }
