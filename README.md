@@ -5,6 +5,7 @@
 Currently, `cr4sh_` provides the following functionality:
 
 - Multiprocessing
+- SIGINT and SIGKILL signall handling
 - Execution of OS executables
 - Redirection of standard input output
 - Appending stdout to the file
@@ -37,6 +38,7 @@ Currently looking to add other custom functions (which are listed in TODO list) 
 - [x] Allow chain of commands when `&&` is supplied
 - [x] Handle append (`>>`) directive
 - [ ] Handle `&` symbol to send command as a background process
+- [ ] Expend singal handling capabilities
 - [ ] Implement cursor to handle arrow, home, end keyboard inputs and cursor movement
 - [x] Implement `touch` function:
 - [ ] Implement `history` function
