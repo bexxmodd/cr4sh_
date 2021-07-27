@@ -2,7 +2,7 @@
 
 cr4sh_ (pronounced crash, because it crashes all the time) is a UNIX mini-shell implemented with Rust.
 
-Currently, cr4sh_ provides the following functionality:
+Currently, `cr4sh_` provides the following functionality:
 
 - Multiprocessing
 - Execution of OS executables
