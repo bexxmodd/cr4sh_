@@ -40,6 +40,7 @@ Currently looking to add other custom functions (which are listed in TODO list) 
 - [ ] Handle `&` symbol to send command as a background process
 - [ ] Expend singal handling capabilities
 - [ ] Implement cursor to handle arrow, home, end keyboard inputs and cursor movement
+- [ ] Usage of Tab to autocomplete commands and file/directory names
 - [x] Implement `touch` function:
 - [ ] Implement `history` function
 - [ ] Implement `dot/source` function
