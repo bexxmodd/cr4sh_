@@ -1,6 +1,6 @@
 # cr4sh_ 0.0.1
 
-cr4sh_ (pronounced crash, because it crashes all the time) is a UNIX mini-shell implemented with Rust.
+**cr4sh_** (pronounced _crash_, because it crashes all the time) is a UNIX mini-shell implemented with Rust.
 
 Currently, `cr4sh_` provides the following functionality:
 
