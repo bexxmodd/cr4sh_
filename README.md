@@ -1,6 +1,16 @@
 # cr4sh_ 0.0.1
 
 **cr4sh_** (pronounced _crash_, because it crashes all the time) is a UNIX mini-shell implemented with Rust.
+This shell is a great for educational purposes. You can learn about Linux system, processes, stdio, signals and much more.
+
+You can follow blog posts which I wrote while building this shell:
+
+- [Systems Programming with Rust (Part 1)](http://www.bexxmodd.com/post/1/)
+- [Systems Programming with Rust (Part 2)](http://www.bexxmodd.com/post/4/)
+- Systems Programming with Rust (Part 3) <<-- comming soon
+
+<br>
+<br>
 
 Currently, `cr4sh_` provides the following functionality:
 
