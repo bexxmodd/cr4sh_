@@ -5,8 +5,8 @@ This shell is a great for educational purposes. You can learn about Linux system
 
 You can follow blog posts which I wrote while building this shell:
 
-- [Systems Programming with Rust (Part 1)](http://www.bexxmodd.com/post/1/)
-- [Systems Programming with Rust (Part 2)](http://www.bexxmodd.com/post/4/)
+- [Systems Programming with Rust (Part 1)](https://www.bexxmodd.com/post/systems-programming-with-rust-1)
+- [Systems Programming with Rust (Part 2)](https://www.bexxmodd.com/post/systems-programming-with-rust-2)
 - Systems Programming with Rust (Part 3) <<-- comming soon
 
 <br>
