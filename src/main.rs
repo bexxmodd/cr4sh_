@@ -81,7 +81,7 @@ fn run_shell(shell_name: &mut ShellName) {
     for mut token in cmd_line.get_multiple_tokens("&&") {
         if CUSTOM_FN.contains(&token.peek()[0..]) {
             if let Err(e) = execute_custom_fn(shell_name, &mut token) {
-                eprint!("{}", e);
+                eprint!("Error: {}", e);
             }
             continue;
         } else if token.is_pipe() {
@@ -121,7 +121,6 @@ fn execute_custom_fn(shell_name: &mut ShellName,
     match &token.peek()[0..] {
         "cd" => cd::change_directory(shell_name, token),
         "touch" | ">" => touch::touch(token)?,
-
         _ => println!("Not implemented yet"),
     }
     Ok(())
@@ -140,7 +139,7 @@ pub fn piped_cmd_execution(cmd_line: &mut Tokenizer) -> Result<(), io::Error> {
         redirect_cmd_execution(cmd_line)?
     } else {
         after_pipe_cmd = cmd_line.get_args();
-        // create a child process which will have input end of pipe open for stream
+        // create a child process that has end of pipe open for stream
         process::Command::new(&after_pipe_cmd[0])
     };
 
