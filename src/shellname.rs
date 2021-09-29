@@ -62,12 +62,12 @@ fn build_user_minishell() -> String {
     let u = users::get_user_by_uid(users::get_current_uid()).unwrap();
 
     username.push_str(&u.name().to_string_lossy());
-    username.push_str("@");
+    username.push('@');
 
     // get system name
     let system = sysinfo::System::new_all();
     username.push_str(&system.get_name().unwrap());
-    username.push_str("»");
+    username.push('»');
 
     username
 }

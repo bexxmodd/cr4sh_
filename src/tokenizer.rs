@@ -13,17 +13,8 @@ pub struct Tokenizer {
 impl Tokenizer {
     /// constructor
     pub fn new(line: &str) -> Self {
-        let is_pipe = if line.contains(" | ") {
-            true
-        } else {
-            false
-        };
-
-        let has_redirection = if line.contains(" >") || line.contains(" < ") {
-            true
-        } else {
-            false
-        };
+        let is_pipe = line.contains(" | ");
+        let has_redirection = line.contains(" >") || line.contains(" < ");
 
         Tokenizer {
             current: Some(line.to_string()),
@@ -61,7 +52,7 @@ impl Tokenizer {
     /// reconstruct a new Tokenizer while disposing current one.
     pub fn commands_before_pipe(&mut self) -> Tokenizer {
         if !self.is_pipe() {
-            return self.clone()
+            self.clone()
         } else {
             self._split_tokenizer("|")
         }
@@ -109,7 +100,7 @@ impl Tokenizer {
                 return true
             }
         }
-        return false
+        false
     }
 
     /// peek what is the next token without consuming it.
@@ -120,7 +111,7 @@ impl Tokenizer {
             let mut open = 0u8;
             for c in cur.chars().into_iter() {
                 if c.eq(&'"') || c.eq(&'\'') {
-                    open = open ^ 1;
+                open = open ^ 1;
                 } else if c.eq(&' ') && open == 0 {
                     break;
                 } else {
@@ -147,14 +138,14 @@ impl Tokenizer {
             }
             // if next value has space in it, that means user supplied
             // text in quotation marks, & we preserve it in a new Tokenizer
-            if a.contains(" ") {
-                before.push_str("'");
+            if a.contains(' ') {
+                before.push('\'');
                 before.push_str(&a);
-                before.push_str("'");
+                before.push('\'');
             } else {
                 before.push_str(&a);
             }
-            before.push_str(" ");
+            before.push(' ');
         }
         before.pop();
         Tokenizer::new(&before)

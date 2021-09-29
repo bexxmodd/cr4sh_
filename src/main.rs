@@ -32,7 +32,7 @@ lazy_static! {
 }
 
 fn main() {
-    if let Err(_) = register_signal_handlers() {
+    if register_signal_handlers().is_err() {
         println!("Signals are not handled properly");
     }
 
@@ -106,18 +106,18 @@ fn run_shell(shell_name: &mut ShellName) {
         } else {
             // execute command that has no redirection
             let cmd = token.get_args();
-            if let Err(_) = process::Command::new(&cmd[0])
-                                            .args(&cmd[1..])
-                                            .status() {
+            if process::Command::new(&cmd[0])
+                                .args(&cmd[1..])
+                                .status().is_err() {
                 eprintln!("{}: command not found!", &cmd[0]);
             }
         }
     }
 }
 
-/// This function is used to execute shell defined functions
+// This function is used to execute shell defined functions
 fn execute_custom_fn(shell_name: &mut ShellName,
-                    token: &mut Tokenizer) -> Result<(), io::Error> {
+                     token: &mut Tokenizer) -> Result<(), io::Error> {
     match &token.peek()[0..] {
         "cd" => cd::change_directory(shell_name, token),
         "touch" | ">" => touch::touch(token)?,
@@ -145,7 +145,7 @@ pub fn piped_cmd_execution(cmd_line: &mut Tokenizer) -> Result<(), io::Error> {
     };
 
     // check if we have any arguments otherwise execute command
-    if after_pipe_cmd.len() > 0 {
+    if after_pipe_cmd.is_empty() {
         proc.args(&after_pipe_cmd[1..]);
     }
     let child = proc.stdin(process::Stdio::piped()).spawn()?;
@@ -173,7 +173,8 @@ pub fn piped_cmd_execution(cmd_line: &mut Tokenizer) -> Result<(), io::Error> {
 /// If the user command has stream redirection this function is used
 /// to accommodate that. This is done by creating a redirection and returning
 /// a command which can then be spawned as a child processes
-pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) -> Result<process::Command, io::Error> {
+pub fn redirect_cmd_execution(cmd_line: &mut Tokenizer) 
+    -> Result<process::Command, io::Error> {
     let mut redirection_count = [0; 2];
     let args = cmd_line.args_before_redirection();
 
@@ -258,7 +259,7 @@ fn open_stdin_file(file_name: &str) -> Result<File, io::Error> {
 
 /// flushes text buffer to the stdout
 fn write_to_stdout(text: &str) -> io::Result<()> {
-    io::stdout().write(text.as_ref())?;
+    io::stdout().write_all(text.as_ref())?;
     io::stdout().flush()?; // to the terminal
     Ok(())
 }

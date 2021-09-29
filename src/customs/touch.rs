@@ -14,13 +14,15 @@ pub fn touch(tokenizer: &mut Tokenizer) -> Result<()> {
     let mut reffile_index = 0usize;
     let mut options_index = usize::MAX;
     for (i, val) in cmd.iter().enumerate() {
-        if val.starts_with("-") {
+        if val.starts_with('-') {
             options_index = i;
-            if cmd[options_index].contains("r") {
+            if cmd[options_index].contains('r') {
                 if cmd.len() > i + 1 {
                     reffile_index = i + 1;
                 } else {
-                    return Err(io::Error::new(ErrorKind::InvalidInput, "Invalid argument"));
+                    return Err(io::Error::new(
+                                ErrorKind::InvalidInput, "Invalid argument"
+                            ));
                 }
                 if cmd.len() > i + 2 {
                     newfile_index = i + 2;
@@ -45,9 +47,12 @@ pub fn touch(tokenizer: &mut Tokenizer) -> Result<()> {
             match op {
                 '-' => continue,
                 'c' => create_flag = false,
-                'a' => set_time(&cmd[newfile_index..], &refer, create_flag, set_atime)?,
-                'm' => set_time(&cmd[newfile_index..], &refer, create_flag, set_mtime)?,
-                'r' => set_time(&cmd[newfile_index..], &refer, create_flag, set_mtime)?,
+                'a' => set_time(&cmd[newfile_index..], &refer,
+                                create_flag, set_atime)?,
+                'm' => set_time(&cmd[newfile_index..], &refer,
+                                create_flag, set_mtime)?,
+                'r' => set_time(&cmd[newfile_index..], &refer,
+                                create_flag, set_mtime)?,
                 _ => eprintln!("{} is invalid operand", op),
             }
         }
@@ -110,7 +115,7 @@ mod tests {
 
         assert!(Path::new(filename).exists());
 
-        if let Err(_) = fs::remove_file(filename) {
+        if fs::remove_file(filename).is_err() {
             eprintln!("Can't remove {}", filename);
         }
     }
@@ -137,11 +142,11 @@ mod tests {
         assert!(Path::new(filename1).exists());
         assert!(Path::new(filename2).exists());
 
-        if let Err(_) = fs::remove_file(filename1) {
+        if fs::remove_file(filename1).is_err() {
             eprintln!("Can't remove {}", filename1);
         }
 
-        if let Err(_) = fs::remove_file(filename2) {
+        if fs::remove_file(filename2).is_err() {
             eprintln!("Can't remove {}", filename2);
         }
     }
@@ -156,7 +161,11 @@ mod tests {
 
     #[test]
     fn test_create_multiple_files() {
-        let files = ["multi01".to_string(), "multi02".to_string(), "multi03".to_string()];
+        let files = [
+            "multi01".to_string(),
+            "multi02".to_string(),
+            "multi03".to_string()
+        ];
         let mut token = Tokenizer::new("touch multi01 multi02 multi03");
         let res = touch(&mut token);
         assert!(res.is_ok());
@@ -166,7 +175,7 @@ mod tests {
         }
 
         for f in files.iter() {
-            if let Err(_) = fs::remove_file(f) {
+            if fs::remove_file(f).is_err() {
                 eprintln!("Can't remove {}", f);
             }
         }
@@ -189,7 +198,7 @@ mod tests {
         let diff = modified_time.duration_since(init_time).unwrap().as_secs();
         assert_eq!(diff, time::Duration::from_secs(1).as_secs());
 
-        if let Err(_) = fs::remove_file(filename) {
+        if fs::remove_file(filename).is_err() {
             eprintln!("Can't remove {}", filename);
         }
     }
@@ -211,7 +220,7 @@ mod tests {
         let diff = modified_time.duration_since(init_time).unwrap().as_secs();
         assert_eq!(diff, time::Duration::from_secs(1).as_secs());
 
-        if let Err(_) = fs::remove_file(filename) {
+        if fs::remove_file(filename).is_err() {
             eprintln!("Can't remove {}", filename);
         }
     }
@@ -235,11 +244,11 @@ mod tests {
             result_metadata.modified().unwrap()
         );
 
-        if let Err(_) = fs::remove_file(filename) {
+        if fs::remove_file(filename).is_err() {
             eprintln!("Can't remove {}", filename);
         }
 
-        if let Err(_) = fs::remove_file("delme") {
+        if fs::remove_file("delme").is_err() {
             eprintln!("Can't remove delme");
         }
     }
